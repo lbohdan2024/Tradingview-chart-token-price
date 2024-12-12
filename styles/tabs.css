@@ -1,0 +1,46 @@
+.tabs-list {
+  @apply p-0
+  w-full
+  gap-0;
+}
+.tab-button {
+  @apply rounded-[4px]
+  border-0
+  border-solid
+  border-[var(--box-border)]
+  border-r-0
+  h-9;
+  font-size: 12px
+}
+
+
+
+.tab-button.tab-buy .tab-button-active {
+  @apply bg-[var(--success-color)];
+}
+
+.tab-button.tab-sell .tab-button-active {
+  @apply bg-[var(--error-color)];
+}
+.tab-panel {
+  @apply pt-0
+  pb-0;
+  &.tab-buy {
+    .trade-button-group {
+      button {
+        &.active {
+          @apply bg-[var(--success-color)];
+        }
+      }
+    }
+  }
+  &.tab-sell {
+    .trade-button-group {
+      button {
+        &.active {
+          @apply bg-[var(--error-color)];
+        }
+      }
+    }
+  }
+}

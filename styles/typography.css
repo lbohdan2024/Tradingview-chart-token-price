@@ -1,0 +1,48 @@
+h1,
+.h1 {
+  @apply text-xl 
+    font-bold
+    text-[var(--text-primary-color)]
+    mb-6;
+}
+/* h2,.h2 {}
+h3,.h3 {}
+h4,.h4 {}
+h5,.h5 {}
+h6,.h6 {}
+p,.p {} */
+.text-white {
+  @apply text-[var(--text-white)];
+}
+.text-error {
+  @apply text-[var(--error-color)];
+}
+.text-success {
+  @apply text-[var(--success-color)];
+}
+.text-light-color {
+  @apply text-[var(--text-primary-color)];
+}
+.text-negative,
+.text-danger {
+  @apply text-[var(--error-color)];
+}
+.text-info {
+  @apply text-[var(--info-color)];
+}
+.section-title {
+  @apply text-sm
+    font-semibold
+    px-3;
+}
+.stack-price-value {
+  @apply font-semibold
+    text-sm;
+}
+.page-heading-container {
+  @apply flex
+    justify-between;
+  .main-page-heading {
+    @apply mb-0;
+  }
+}

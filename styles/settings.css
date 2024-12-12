@@ -1,0 +1,47 @@
+.input-group-left {
+  min-width: 15%;
+  border-right: 2px solid;
+  border-color: hsl(var(--nextui-default-200) / var(--nextui-default-200-opacity, var(--tw-border-opacity)));
+  margin-left: 10px;
+  margin-right: 10px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  cursor: default;
+}
+.input-text{
+  display: flex;
+  align-items: center;
+}
+
+.no-lable-input{
+height: 42px;
+margin-top: 20px;
+}
+
+.amount-btn{
+  @apply w-full h-11; /* Default for small devices */
+
+  /* Apply different widths for different screen sizes */
+  @apply md:w-60;   /* Medium screens (md) */
+}
+
+.divider {
+    border-bottom: 1px solid #222227;
+    padding: 20px;
+}
+
+.disabled-input input {
+ cursor: not-allowed;
+}
+
+.sidebar-card-loading {
+  min-height: 85vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.message{
+color: rgb(34 197 94);
+}

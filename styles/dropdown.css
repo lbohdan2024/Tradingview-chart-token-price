@@ -1,0 +1,11 @@
+.dropdown-base {
+  @apply max-w-76 min-w-0 text-white/50;
+}
+
+.dropdown-end-content {
+  @apply flex
+    flex-wrap;
+}
+.sending-wallet .truncate{
+  @apply text-foreground-500 !important;
+}

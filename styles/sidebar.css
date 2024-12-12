@@ -1,0 +1,125 @@
+@layer components {
+  .sidebar-box {
+    @apply text-sm
+    flex
+    flex-col
+    gap-4
+    text-white/85;
+    .card-body {
+      @apply px-[8px];
+      .tabs-list {
+        @apply -mx-[8px]
+        rounded-sm
+            w-auto;
+      }
+    }
+    .input-field {
+      @apply bg-transparent
+        border-none;
+    }
+  }
+  .send-row {
+    @apply border-[1px]
+    border-solid
+    border-[var(--box-border)]
+    items-center
+    pr-3
+    mb-3;
+    .send-btn {
+      @apply p-2
+    border-r-[1px]
+    border-solid
+    border-[var(--box-border)]
+    max-w-[30%]
+    text-left
+    break-all;
+    }
+    .inp-btn {
+      @apply max-w-[30%]
+        border-none;
+      .input-field {
+        @apply w-full
+          focus:outline-none;
+      }
+    }
+  }
+  .number-row {
+    .btn-row {
+      @apply text-center
+        border-[1px]
+        border-solid
+        border-[var(--box-border)]
+        px-4
+        py-3
+        flex-auto;
+      &.active {
+        &.buy {
+          @apply bg-[var(--success-color)];
+        }
+        &.sell {
+          @apply bg-[var(--error-color)];
+        }
+      }
+    }
+  }
+  .button-order,
+  .send-row,
+  .number-row {
+    @apply flex
+    flex-wrap;
+  }
+  .stack-list-group-container {
+    .stack-list-group-item {
+      @apply flex
+        flex-wrap
+        justify-between;
+    }
+    .stack-price-heading {
+      @apply w-auto;
+    }
+  }
+}
+
+.sol-margin-0{
+  margin-top: 0px !important;
+  label{
+  margin-left: -10px;
+  }
+}
+
+.sol-label-margin-top{
+ @apply mt-5
+}
+.switch-container-margin-top{
+@apply mt-6
+  ml-3
+}
+
+.buy.trade-button-group {
+  display: flex;
+  flex-wrap: wrap !important; /* Allow buttons to wrap to the next line */
+  gap: 10px; /* Space between buttons */
+}
+
+.buy.trade-button-group .FormButton {
+  padding: 10px 20px;
+  border-radius: 15px !important; /* Rounded corners */
+  cursor: pointer;
+  flex: 1 0 calc(33.33% - 10px); /* Three buttons per row */
+  text-align: center;
+}
+
+
+.sell.trade-button-group {
+  display: flex;
+  flex-wrap: wrap !important; /* Allow buttons to wrap to the next line */
+  gap: 10px; /* Space between buttons */
+}
+
+.sell.trade-button-group .FormButton {
+  padding: 10px 20px;
+  border-radius: 15px !important; /* Rounded corners */
+  cursor: pointer;
+  flex: 1 0 calc(50% - 10px); /* Three buttons per row */
+  text-align: center;
+}

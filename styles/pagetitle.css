@@ -1,0 +1,21 @@
+.main-page-title {
+  @apply /* bg-[var(--box-bg)]
+    border-b-[1px]
+    border-solid
+    border-[var(--box-border)] */
+    mb-3;
+  .main-page-title-container {
+    @apply py-3
+        px-0
+        flex
+        flex-wrap
+        justify-between
+        items-center;
+  }
+}
+.profile-page-container {
+  @apply -mt-6;
+  .main-page-title {
+    @apply mt-0;
+  }
+}

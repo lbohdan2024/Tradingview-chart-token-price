@@ -1,0 +1,18 @@
+.main-container {
+  @apply pt-[120px]
+    md:pt-[var(--header-height)]
+    px-1
+    pl-2;
+    margin-top: -8px;
+    
+}
+
+.main-content {
+  @apply flex
+    flex-col
+    gap-4
+    ml-[3px];
+}
+.profile-page-container {
+  @apply mx-0;
+}

@@ -1,0 +1,134 @@
+.button {
+  @apply flex
+  px-3
+  py-2
+  items-center;
+  &#excute_trade {
+    @apply gap-2;
+  }
+  .searchLoading {
+    @apply static
+    mr-1;
+  }
+  &.button-full {
+    @apply w-full;
+  }
+  &.button-cureved-full {
+    @apply rounded-full;
+  }
+  &.button-outline {
+    @apply bg-transparent
+    bg-none
+    border-[1px]
+    border-solid;
+    &.button-outline-default {
+      @apply border-[var(--box-border)];
+    }
+    &.button-outline-primary {
+      @apply border-[var(--primary)];
+    }
+    &.button-outline-success {
+      @apply border-[var(--success-color)];
+    }
+    &.button-outline-error {
+      @apply border-[var(--error-color)];
+    }
+  }
+  &.refresh-button {
+    @apply text-[var(--border-white-50)];
+  }
+  &.setting-button {
+    @apply justify-between;
+  }
+}
+.button-lg {
+  @apply h-[45px]
+  py-[5px]
+  px-[10px];
+}
+.scroll-top {
+  @apply fixed
+    right-1
+    bottom-1
+    w-[35px]
+    h-[35px]
+    rounded-full
+    bg-[#f5f5f6]
+    text-[#fc5632]
+    border-2
+    border-solid
+    border-[#fc5632]
+    items-center
+    justify-center
+    hidden;
+  &.active {
+    @apply flex;
+  }
+}
+.button-primary {
+  @apply bg-[var(--primary)]
+   p-2
+   px-4
+   text-[var(--text-white)];
+}
+.button-secondary {
+  @apply bg-[var(--secondary)]
+  p-2
+  px-4
+  text-[var(--text-white)];
+}
+.button-success {
+  @apply bg-[var(--success-color)]
+  text-[var(--text-white)];
+}
+.button-danger {
+  @apply bg-[var(--error-color)]
+  text-[var(--text-white)];
+}
+.rounded-5 {
+  @apply rounded-[5px];
+}
+.chart-toggle-button {
+  @apply hidden;
+}
+
+.button-priority-group {
+  @apply flex 
+  gap-3 
+  mb-4;
+  .button {
+    @apply p-2
+    flex-1
+    justify-center;
+    &.active {
+      @apply bg-[var(--active-color)]
+      border-[var(--active-border-color)];
+    }
+  }
+}
+.copy-button {
+  @apply flex
+  flex-wrap
+  items-center
+  relative;
+}
+.copy-button-clip {
+  @apply relative;
+}
+.tooltip-button {
+  @apply text-[var(--info-color)];
+}
+.tooltip-button-copy {
+  @apply relative;
+}
+.trade-button-group {
+  @apply w-full;
+  button {
+    @apply border-1
+    h-9
+  border-[var(--box-border)]
+  !rounded-none
+  min-w-0
+  flex-auto;
+  }
+}

@@ -1,0 +1,12 @@
+.bg-success {
+  background-color: var(--success-color);
+}
+.bg-danger {
+  background-color: var(--error-color);
+}
+.bg-success-light {
+  background-color: var(--success-light-color);
+}
+.bg-danger-light {
+  background-color: var(--text-negative);
+}

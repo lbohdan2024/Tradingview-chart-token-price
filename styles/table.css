@@ -1,0 +1,94 @@
+.card-table-base {
+  @apply p-0
+    bg-none;
+}
+.card-loading-wrapper {
+}
+.card-empty-wrapper {
+}
+.card-table-wrapper {
+  @apply p-0
+    overflow-auto;
+}
+.card-table-th,
+.card-table-tr {
+  @apply !rounded-none;
+  font-size: 11px
+}
+
+.card-table-th {
+  @apply 
+    uppercase
+    font-medium
+    bg-[var(--table-thead-bg)];
+    font-size: 11px
+}
+.card-table-th-smaller {
+  @apply 
+    uppercase
+    font-medium
+    bg-[var(--table-thead-bg)];
+    font-size: 11px
+}
+.card-table {
+}
+.card-table-sort-icon {
+}
+.pagination-container {
+  @apply flex
+    justify-end
+    m-0
+    /* px-3; */
+}
+.pagination-container-add {
+  @apply flex
+    justify-center
+    m-0
+    /* px-3; */
+}
+
+.pagination-active {
+  @apply bg-[var(--pagination-bg-active)]
+    shadow-none
+    border-1
+    border-solid
+    border-[var(--body-bg)]
+    active:bg-none;
+}
+.pagination-item {
+  @apply min-w-5
+    h-5;
+}
+.pagination-item:active {
+  @apply !bg-transparent;
+}
+.pagination-container li {
+  @apply bg-transparent;
+}
+
+.scrollable-table{
+  thead {
+  position: sticky;
+  top: 0; /* Make the header stick to the top */
+  z-index: 2; /* Ensure header stays on top of the content */
+ }
+}
+
+.table-container {
+  max-height: 400px; /* Your desired height */
+  overflow-y: auto; /* Enable vertical scrolling */
+  position: relative;
+}
+
+.table-bottom-spinner {
+  display: flex;
+  justify-content: center;
+  padding: 16px 0; /* Padding for spacing around the spinner */
+  margin-top: -150; /* Avoid negative values, keep it natural */
+}
+
+.no-more-records{
+  display: flex;
+  justify-content: center;
+  padding: 16px 0;
+}

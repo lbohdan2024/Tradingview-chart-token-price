@@ -1,0 +1,63 @@
+.auth-layout {
+  @apply relative
+    mx-auto
+    w-full
+    min-h-[calc(100vh_-_var(--header-height))]
+    md:w-6/12
+    lg:w-[495px]
+    flex
+    justify-center
+    items-center
+    flex-wrap
+    text-[var(--text-primary-color)];
+}
+.auth-layout-wallet-login{
+  @apply relative
+    mx-auto
+    w-full
+    min-h-[calc(100vh_-_var(--header-height))]
+    md:w-6/12
+    lg:w-[540px]
+    flex
+    justify-center
+    items-center
+    flex-wrap
+    text-[var(--text-primary-color)];
+}
+.auth-layout-wallet-created{
+  @apply relative
+  mx-auto
+  w-full
+  min-h-[calc(100vh_-_var(--header-height))]
+  md:w-6/12
+  lg:w-[650px]
+  flex
+  justify-center
+  items-center
+  flex-wrap
+  text-[var(--text-primary-color)];
+
+}
+.login-container {
+  @apply bg-[var(--box-bg)]
+    p-5
+    w-full
+    rounded-[5px];
+}
+.passwprd-reset-container {
+  @apply p-8;
+}
+
+.turnkey-container {
+  @apply
+  h-[50px];
+  
+  background-color: var(
+    --tv-color-popup-background,
+    var(--themed-color-popup-background, #1e222d)
+  );
+  div{
+    @apply
+    text-white
+  }
+}

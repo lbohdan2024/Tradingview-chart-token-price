@@ -1,0 +1,40 @@
+.auto-complete-base {
+  @apply w-full
+    md:w-[35rem]
+    absolute
+    md:static
+    top-[60px]
+    bg-[var(--box-bg)]
+    md:bg-none
+    px-2
+    py-2
+    md:px-0
+    left-0
+    right-0
+    border-t-1
+    border-solid
+    border-[var(--box-border)]
+    border-b-1
+    md:border-none;
+}
+.auto-complete-input-wrapper {
+  @apply h-[42px]
+    bg-black
+    border-1
+    border-[var(--box-border)];
+    
+}
+.auto-complete-selector-button {
+  @apply hidden;
+}
+.list-item-base {
+  @apply rounded-medium
+    text-default-500
+    transition-opacity
+    data-[hover=true]:text-foreground
+    dark:data-[hover=true]:bg-default-50
+    data-[pressed=true]:opacity-70
+    data-[hover=true]:bg-default-200
+    data-[selectable=true]:focus:bg-default-100
+    data-[focus-visible=true]:ring-default-500;
+}

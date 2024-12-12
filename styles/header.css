@@ -1,0 +1,57 @@
+.header-top {
+  @apply fixed
+    top-0
+    left-0
+    right-0
+    h-[125px]
+    items-start
+    md:h-[60px]
+    bg-[var(--box-bg)]
+    border-b-[1px]
+    border-solid
+    border-[var(--box-border)];
+}
+.header-container {
+  @apply flex 
+    items-center 
+    justify-between 
+    h-auto
+    md:h-full 
+    text-purple-300 
+    flex-wrap 
+    py-3
+    md:py-0;
+}
+.header-logo {
+  @apply text-[var(--logo-text-color)]
+    text-xl
+    font-bold
+    flex-grow-0;
+}
+.nav-link {
+  @apply flex
+    items-center
+    gap-2
+    text-[var(--nav-link)]
+    hover:text-[var(--primary)]
+    font-normal;
+}
+
+a {
+  @apply text-[var(--nav-link)]
+    hover:text-[var(--primary)];
+}
+a:hover {
+  text-decoration: none !important;
+}
+
+.balance-img {
+  width: 36px;
+}
+.chainlogo-margin {
+  margin-left: 20px;
+  border: 1px solid transparent;
+  background: transparent;
+  width: 16px;
+  height: 16px;
+}

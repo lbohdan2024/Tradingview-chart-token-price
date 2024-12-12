@@ -1,0 +1,41 @@
+/******Light Mode color palatte******/
+:root {
+  --header-height: 80px;
+  --heading-1: 1.25rem;
+  --box-bg: #1d1f23;
+  --body-bg: #f1f1f1;
+}
+/******Dark Mode color palatte******/
+
+html.dark {
+  --body-bg: #000000;
+  --box-bg: #1d1f23;
+  --input-bg: #2d3036;
+  --input-border: #33363f;
+  --table-thead-bg: #272a33;
+  --box-border: #33363f;
+  --light-color: #ffff;
+  --logo-text-color: #ffd161;
+  --primary: #fc5632;
+  --secondary: #222227;
+  --scroll-button-border: #f5f5f5e6;
+  --text-primary-color: rgba(255, 255, 255, 0.75);
+  --text-white: #fff;
+  --border-white: #fff;
+  --success-color: #81cc5a;
+  --error-color: #e32d33;
+  --info-color: #0dcaf0;
+  --warning-color: #ff0000;
+  --light-color: #3d3d3d;
+  --active-color: #fc5632;
+  --active-border-color: #d14122;
+  --text-negative: #e87c47;
+  --success-light-color: #b7d983;
+  --tab-color: #da0d1e;
+  --border-white-50: rgba(255, 255, 255, 0.5);
+  --text-white-50: rgba(255, 255, 255, 0.5);
+  --active-button-default: #313237;
+  --tab-cursor-card: #fd6c49;
+  --pagination-bg-active: #131517;
+  --nav-link: #6b8eff;
+}

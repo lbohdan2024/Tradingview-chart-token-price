@@ -1,0 +1,143 @@
+.scrollable-dropdown ul {
+  @apply overflow-y-auto 
+  w-full;
+  max-height: calc(100vh - 70px);
+}
+
+.scrollable-dropdown ul::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollable-dropdown ul::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 10px;
+}
+
+.scrollable-dropdown ul::-webkit-scrollbar-thumb:hover {
+  background-color: #555;
+}
+
+.dropdown-list-group-item {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  border-radius: 1px;
+  border-bottom-width: 1px;
+  border-style: solid;
+  border-color: var(--box-border);
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.tweet-data{
+  width: 100%;
+  margin-top: -20px;
+}
+.tweet-sum-color{
+  color: #ffffffbf;
+}
+.days-filter{
+  margin-left: 18px;
+}
+.tweet-summary-data{
+  border-radius: 10px;
+  border:2px solid #3d3d3d;
+}
+
+@media (min-width: 320px) {
+  /* smartphones, portrait iPhone, portrait 480x320 phones (Android) */
+  .go-plues-text {
+    min-width: 25rem;
+  }
+}
+
+@media (min-width: 480px) {
+  /* smartphones, Android phones, landscape iPhone */
+  .go-plues-text {
+    min-width: 20rem;
+  }
+}
+
+@media (min-width: 600px) {
+  /* portrait tablets, portrait iPad, e-readers (Nook/Kindle), landscape 800x480 phones (Android) */
+  .go-plues-text {
+    min-width: 30rem;
+  }
+}
+
+@media (min-width: 801px) {
+  /* tablet, landscape iPad, lo-res laptops ands desktops */
+  .go-plues-text {
+    min-width: 45rem;
+  }
+}
+
+@media (min-width: 1025px) {
+  /* big landscape tablets, laptops, and desktops */
+  .go-plues-text {
+    min-width: 50rem;
+  }
+}
+
+@media (min-width: 1281px) {
+  /* hi-res laptops and desktops */
+  .go-plues-text {
+    min-width: 11.1rem;
+  }
+}
+
+.alert-top {
+  margin-bottom: 1%;
+  background-color: #d60f0f;
+  font-size: medium;
+}
+
+.alert-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.alert-body-p {
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.sidebar-card-loading {
+  min-height: 85vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.alert-close-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.alert-body-text {
+  text-align: center;
+  width: 95%;
+}
+
+.banner-alert {
+  margin-bottom: 2%;
+  background-color: rgb(220 38 38);;
+  font-size: 15px;
+}
+
+.switch-container {
+  display: flex;
+  align-items: center;
+}
+
+.font-size-12{
+  @apply text-xs
+}

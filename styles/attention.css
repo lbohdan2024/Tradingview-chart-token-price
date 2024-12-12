@@ -1,0 +1,167 @@
+.btn-pagination {
+  margin-left: 0.25rem;
+  margin-right: 0.25rem;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  border-style: none;
+  --tw-bg-opacity: 1;
+  background-color: rgb(59 130 246 / var(--tw-bg-opacity));
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity));
+}
+.page-info {
+  font-size: 14px;
+}
+.btn-pagination:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(29 78 216 / var(--tw-bg-opacity));
+}
+.attention_list {
+  border: solid 0.5px rgb(58 58 60);
+  border-radius: 10px;
+  margin: 5px;
+  padding: 5px;
+}
+.tweet p {
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: -1px;
+  position: relative;
+}
+
+.tweet a {
+  margin-left: 5px;
+  text-decoration: none;
+}
+
+.tweet .tweet-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin: 5px;
+  position: relative;
+  cursor: pointer;
+  color: white;
+}
+
+.tweet .tweet-text:hover::after {
+  content: attr(data-fulltext);
+  position: absolute;
+  left: 0;
+  top: 100%;
+  white-space: nowrap;
+  background: #fff;
+  border: 1px solid #ccc;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: auto;
+  max-width: none;
+  color: black;
+}
+
+.tweet .time {
+  margin-left: 5px;
+  flex-shrink: 0;
+}
+.button-format {
+  text-align: center;
+  margin-top: 2px;
+  padding-top: 10px;
+}
+
+.header-custom {
+  /* margin: 0.5rem; */
+  font-size: 14px;
+  line-height: 1.65rem;
+  font-weight: 500;
+  color: var(--text-primary-color);
+}
+.header-custom-margin {
+  /* margin: 0px;  */
+  margin-top: 3px;
+  margin-left: 5px;
+}
+.twiiter-feed-main-page {
+  margin-top: -8px;
+}
+.header-subtext-color {
+  color: #6b6c6e;
+  font-size: x-small;
+}
+.header-custom-top-margin {
+  margin-left: 40%;
+}
+.grid-container {
+  display: flex;
+  grid-template-columns: 1fr 1fr;
+  height: 100vh;
+}
+.full-width-padding {
+  width: 100%;
+}
+.grid-layout {
+  display: grid;
+  grid-template-columns: 58% 42%; /* 3 items per row */
+  gap: 5px;
+}
+/* .full-width-column {
+        grid-column: 1 / -1;
+      } */
+.full-width {
+  width: 100%;
+}
+.half-width-padding {
+  width: 100%;
+  padding: 5px;
+}
+.single-column-grid {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 5px;
+}
+.centered-text-padding {
+  text-align: center;
+  padding: 20px;
+}
+.h-28px {
+  height: "28px" !important;
+}
+.h-32px {
+  height: "32px" !important;
+}
+.full-width-column {
+  grid-column: span 3; /* Makes the TwitterFeed take up the full width */
+  width: 100%; /* Ensure full width for the table */
+}
+.full-screen-flex {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+}
+.sixty-percent-padding {
+  width: 72%;
+  padding-right: 10px;
+}
+.forty-percent-width {
+  width: 28%;
+}
+.custom-text {
+  color: grey;
+  font-size: 11px;
+  margin-left: 15px;
+}
+.no-style {
+  color: inherit; /* Inherit color from parent element */
+  text-decoration: none; /* Optional: Remove underline if applied */
+}
