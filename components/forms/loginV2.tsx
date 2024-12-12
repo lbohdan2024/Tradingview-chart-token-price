@@ -480,14 +480,6 @@ export default function LoginForm() {
               onBlur={handleBlur}
               onChange={handleChange}
             />
-            <div className="text-end">
-              <Link
-                className="text-sm font-normal hover:underline text-primary-400"
-                href={paths.reset_password}
-              >
-                Forgot Password?
-              </Link>
-            </div>
             <div>
               {isError && (
                 <p className="text-danger text-end">Invalid Credentials!</p>
@@ -499,36 +491,8 @@ export default function LoginForm() {
                 <FormButton className="mr-2" color="primary" type="submit">
                   Sign In
                 </FormButton>
-                {!loading && !showMmMsg ? (
-                  <>
-                    <Image
-                      alt=""
-                      className="cursor-pointer mr-2"
-                      height={25}
-                      src="/images/metamask-logo.png"
-                      width={25}
-                      onClick={connectMetaMask}
-                    />
-                    <Image
-                      alt=""
-                      className="cursor-pointer rounded-full"
-                      height={25}
-                      src="/images/phantom-logo.svg"
-                      width={25}
-                      onClick={handlePhantomLogin}
-                    />
-                  </>
-                ) : (
-                  <Spinner size="sm" />
-                )}
               </div>
             </div>
-            <p className="text-sm font-light text-primary-400">
-              Don't have an account yet?{" "}
-              <Link className="font-semibold" href={paths.signup}>
-                Sign Up
-              </Link>
-            </p>
           </Form>
         )}
       </Formik>
