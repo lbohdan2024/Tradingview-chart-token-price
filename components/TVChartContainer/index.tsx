@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import {
   ChartingLibraryWidgetOptions,
   LanguageCode,
@@ -35,6 +35,7 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
   const [sendingData, setSendingData] = useState({});
   const [isChecked, setIsChecked] = useState(false);
   const [selectedValue, setSelectedValue] = useState("Crossing Up");
+  const [chartTypes, setChartTypes] = useState('');
 
   const handleChange = (event: any) => {
     setSelectedValue(event.target.value);
@@ -43,7 +44,7 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
   async function handleTrendLineSaving(requestData: any) {
     try {
       const data = await savingTrendLine(requestData || "");
-      toast.success(data.message); 
+      toast.success(data.message);
       return data
     } catch (error) {
       console.error("Error saving trend line data:", error);
@@ -60,12 +61,12 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
 
   const onSave = async () => {
     try {
-      if(alertTitle){
-      const updatedData = { ...sendingData, text: alertTitle, crossing: selectedValue};
-      handleTrendLineSaving(updatedData);
-      onClose();
-      setAlertTitle("")
-    }
+      if (alertTitle) {
+        const updatedData = { ...sendingData, text: alertTitle, crossing: selectedValue };
+        handleTrendLineSaving(updatedData);
+        onClose();
+        setAlertTitle("")
+      }
     } catch (error) {
       console.error("Trend line:", error);
     }
@@ -76,8 +77,24 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
   };
 
   const pathName = usePathname()
+  const search = useSearchParams()
   const chartContainerRef =
     useRef<HTMLDivElement>() as React.MutableRefObject<HTMLInputElement>
+
+  const getChartType = () => {
+    let chartType = window.localStorage.getItem("tvChartType");
+    let title;
+    let content;
+
+    if (chartType == 'marketcap') {
+      title = 'Switch price chart';
+      content = "Price / <span style='color: blue;'>Market Cap</span>";
+    } else {
+      title = 'Switch market cap chart';
+      content = "<span style='color: blue;'>Price</span> / Market Cap";
+    }
+    return { chartType, title, content };
+  };
 
   useEffect(() => {
     let chn = localStorage.getItem("chain")
@@ -94,7 +111,7 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
         "tokenName",
         searchResponse?.token_info?.token_info_dex.token_symbol ?? "POPCAT",
       )
-      token_id = "0x812ba41e071c7b7fa4ebcfb62df5f45f6fa853ee"
+      token_id = "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"
     }
 
     const tokenId =
@@ -106,16 +123,21 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
     let chain: string
     const quoteToken = searchResponse?.token_info?.qoute_token || ""
     const walletId = searchResponse?.token_info?.user_wallet_id || ""
-    const token_id_org = searchResponse?.token_info?.token_id || ""
+    const token_id_org = search.get("search") || tokenId
     const avgPrice = searchResponse?.token_info?.avgPrice || 0
     if (pathName.includes("/sol")) {
       chain = "sol"
     } else {
       chain = "eth"
     }
+
+    let chartType = window.localStorage.getItem("tvChartType");
+    if (chartType == null) chartType = 'price';
+
     const datafeed = createDataFeed(
       tokenId,
       chain,
+      chartType,
       quoteToken,
       walletId,
       token_id_org,
@@ -153,6 +175,18 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
           if (symbolInfo.format === "price") {
             return {
               format: (price, signPositive) => {
+                if (price >= 1000000000) {
+                  return `${(price / 1000000000).toFixed(2)}B`
+                }
+    
+                if (price >= 1000000) {
+                  return `${(price / 1000000).toFixed(2)}M`
+                }
+    
+                if (price >= 1000) {
+                  return `${(price / 1000).toFixed(2)}K`
+                }
+
                 return prettyNumber(price)
               },
             }
@@ -184,13 +218,40 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
 
     async function handleTrendLineSaving(requestData: any) {
       try {
-          const data = await savingTrendLine(requestData || "");
+        const data = await savingTrendLine(requestData || "");
       } catch (error) {
-          console.error("Error saving trend line data:", error);
+        console.error("Error saving trend line data:", error);
       }
-  }
+    }
 
     const tvWidget = new widget(widgetOptions)
+    tvWidget.headerReady().then(() => {
+      const { chartType, title, content } = getChartType();
+
+      var button = tvWidget.createButton();
+      button.setAttribute('title', title);
+      button.innerHTML = content;
+      button.addEventListener('click', function () {
+        const chartType = window.localStorage.getItem("tvChartType");
+
+        const switchType = chartType == 'marketcap' ? 'price' : 'marketcap';
+        window.localStorage.setItem("tvChartType", switchType);
+
+        let switchTitle;
+        let switchContent;
+        if (switchType == 'marketcap') {
+          switchTitle = 'Switch price chart';
+          switchContent = "Price / <span style='color: blue;'>Market Cap</span>";
+        } else {
+          switchTitle = 'Switch market cap chart';
+          switchContent = "<span style='color: blue;'>Price</span> / Market Cap";
+        }
+
+        button.setAttribute('title', switchTitle);
+        button.innerHTML = switchContent;
+        setChartTypes(switchType);
+      });
+    })
     tvWidget.onChartReady(() => {
       tvWidget.subscribe("drawing_event", (id: string, type: string) => {
         let temp: { sources: unknown[]; groups: unknown[] } | undefined
@@ -229,19 +290,20 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
               "tvWidgetLineToolsState",
               JSON.stringify(temp),
             )
-            try{
+            try {
               const newLinesArray = Array.from(lineToolsState.sources.entries()).pop() as [string, any] | undefined;
               const newLinesObj: any = newLinesArray ? newLinesArray[1] : undefined;
-              let requestDataTrendLine = {'token_id':token_id_org,'chain':chain,'x1':newLinesObj?.state?.points[0]?.time_t,
-                'y1':newLinesObj?.state?.points[0]?.price,'x2':newLinesObj?.state?.points[1]?.time_t,
-                'y2':newLinesObj?.state?.points[1]?.price, 'key':newLinesObj.id
+              let requestDataTrendLine = {
+                'token_id': token_id_org, 'chain': chain, 'x1': newLinesObj?.state?.points[0]?.time_t,
+                'y1': newLinesObj?.state?.points[0]?.price, 'x2': newLinesObj?.state?.points[1]?.time_t,
+                'y2': newLinesObj?.state?.points[1]?.price, 'key': newLinesObj.id
               }
-              if(isChecked){
+              if (isChecked) {
                 setSendingData(requestDataTrendLine)
                 setIsPopupVisible(true)
               }
-             
-            }catch(e){
+
+            } catch (e) {
               console.log(e)
             }
             break
@@ -361,9 +423,9 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
   })
 
   return (
-  <>
-       <ToastContainer />
-       {isPopupVisible && (
+    <>
+      <ToastContainer />
+      {isPopupVisible && (
         <Modal isOpen={isPopupVisible} onOpenChange={(isOpen) => setIsPopupVisible(isOpen)}>
           <ModalContent>
             {() => (
@@ -381,19 +443,19 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
                     onChange={handleTitleChange}
                     className="max-w-xs"
                   />
-                <Select
+                  <Select
                     isRequired
                     label="Crossing"
                     defaultSelectedKeys={["Crossing Up"]}
                     className="max-w-xs"
                     onChange={handleChange}
                   >
-                  <SelectItem key="Crossing Up" value="Crossing Up">
-                    Crossing Up
-                  </SelectItem>
-                  <SelectItem key="Crossing Down" value="Crossing Down">
-                    Crossing Down
-                  </SelectItem>
+                    <SelectItem key="Crossing Up" value="Crossing Up">
+                      Crossing Up
+                    </SelectItem>
+                    <SelectItem key="Crossing Down" value="Crossing Down">
+                      Crossing Down
+                    </SelectItem>
                   </Select>
                   <p className="text-white">Alert will automatically expiry in 30days!</p>
                 </ModalBody>
@@ -410,11 +472,19 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
           </ModalContent>
         </Modal>
       )}
-        <div className="flex items-center justify-end">
-          <span className="mr-2">Chart Alert</span>
-          <Switch defaultSelected={isChecked} color="success" onChange={handleSwitchChange} />
-        </div>
-   <div ref={chartContainerRef} className={style.TVChartContainer} />
-  </>)
- 
+      <div className="flex items-center justify-end">
+        <span className="mr-2">Chart Alert</span>
+        <Switch defaultSelected={isChecked} color="success" onChange={handleSwitchChange} />
+      </div>
+      {
+        chartTypes === "marketcap" ? (
+          <div ref={chartContainerRef} className={style.TVChartContainer} />
+        ) : (
+          <div ref={chartContainerRef} className={style.TVChartContainer} />
+        )
+        
+      }
+      <div ref={chartContainerRef} className={style.TVChartContainer} />
+    </>)
+
 }

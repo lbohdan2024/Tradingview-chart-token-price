@@ -29,6 +29,7 @@ let timeoutId: NodeJS.Timeout | null = null
 export function createDataFeed(
   tokenId: string,
   chain: string,
+  chartType: string,
   quoteToken?: string,
   walletId?: string,
   token_id_org?: any,
@@ -137,6 +138,36 @@ export function createDataFeed(
       const fromTime = to - timestring(period) * 600
 
       try {
+        let totalSupply: number;
+        if (chartType === "marketcap") {
+          const getSupply = `query {token(input: { address: "${token_id_org}", networkId: ${chainId} })
+            {
+              id
+              address
+              cmcId
+              decimals
+              name
+              symbol
+              totalSupply
+              info {
+                circulatingSupply
+                imageThumbUrl
+              }
+              explorerData {
+                blueCheckmark
+                description
+                tokenType
+              }
+            }
+          }`
+
+          const supply = await makeApiRequest(
+            getSupply,
+            `${process.env.NEXT_PUBLIC_CODEX_API}`,
+          )
+          totalSupply = parseFloat(supply.data.token.totalSupply)
+        }
+
         const getTokenInfo = `query {
           getBars(
             symbol: "${tokenSymbol}"
@@ -179,10 +210,10 @@ export function createDataFeed(
           .filter((bar: any) => bar.time >= fromTime && bar.time < to)
           .map((bar: any) => ({
             time: bar.time * 1000,
-            low: bar.low,
-            high: bar.high,
-            open: bar.open,
-            close: bar.close,
+            low: chartType == 'price' ? bar.low : bar.low * totalSupply,
+            high: chartType == 'price' ? bar.high : bar.high * totalSupply,
+            open: chartType == 'price' ? bar.open : bar.open * totalSupply,
+            close: chartType == 'price' ? bar.close : bar.close * totalSupply,
             volume: bar.volume,
           }))
 
