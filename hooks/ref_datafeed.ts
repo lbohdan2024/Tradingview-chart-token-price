@@ -35,6 +35,7 @@ export function createDataFeed(
   token_id_org?: any,
 ) {
   // let timeoutId: any;
+  let totalSupply: number
   if (timeoutId) {
     clearTimeout(timeoutId)
   }
@@ -138,7 +139,6 @@ export function createDataFeed(
       const fromTime = to - timestring(period) * 600
 
       try {
-        let totalSupply: number;
         if (chartType === "marketcap") {
           const getSupply = `query {token(input: { address: "${token_id_org}", networkId: ${chainId} })
             {
@@ -355,13 +355,14 @@ export function createDataFeed(
 
               const lastPrice = {
                 time: Number(latestData["time"]),
-                low: low,
-                high: high,
-                open: open,
-                close: close,
+                low: chartType == "price" ? low : low * totalSupply,
+                high: chartType == "price" ? high : high * totalSupply,
+                open: chartType == "price" ? open : open * totalSupply,
+                close: chartType == "price" ? close : close * totalSupply,
                 volume: vol,
               }
 
+              // console.log("===========totalSupply===>", totalSupply)
               // Send the updated candle to the chart
               await onRealtimeCallback(lastPrice)
 
