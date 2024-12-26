@@ -3,11 +3,18 @@ import {
   LineToolState,
 } from "@/public/static/charting_library/charting_library";
 import { LocalStorageSaveLoadAdapter } from "./LocalStorageSaveLoadAdapter";
+import { isObjectEmpty } from "@/hooks/helpers";
 
 var LocalStorageAdapter: LocalStorageSaveLoadAdapter;
 
 const loadLocalStorage = async () => {
   LocalStorageAdapter = new LocalStorageSaveLoadAdapter();
+  if (
+    !LocalStorageAdapter._drawings ||
+    isObjectEmpty(LocalStorageAdapter._drawings)
+  )
+    return;
+
   const drawings =
     LocalStorageAdapter._drawings[
       Object.keys(LocalStorageAdapter._drawings)[

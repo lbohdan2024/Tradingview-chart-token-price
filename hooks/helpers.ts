@@ -175,3 +175,7 @@ export async function savingTrendLine(requestData: string) {
     console.error(error);
   }
 }
+
+export const isObjectEmpty = (objectName: object) => {
+  return Object.keys(objectName).length === 0
+}

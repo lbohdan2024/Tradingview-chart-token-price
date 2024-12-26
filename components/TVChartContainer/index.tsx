@@ -255,13 +255,15 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
       });
     })
     tvWidget.onChartReady(async () => {
-      const {states, drawingsKey} = await loadLocalStorage()
-      tvWidget
+      const load = await loadLocalStorage()
+      if (load != undefined) {
+        tvWidget
         .activeChart()
-        .applyLineToolsState(states)
+        .applyLineToolsState(load.states)
         .then(() => {
-          console.log("Drawings state restored!", states)
+          console.log("Drawings state restored!", load.states)
         })
+      }
 
 
       tvWidget.activeChart().reloadLineToolsFromServer();
@@ -273,7 +275,7 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
 
         // console.log("drawing_event", id, type)
 
-        if (!drawingsKey || drawingsKey == undefined) {
+        if (!load?.drawingsKey || load?.drawingsKey == undefined) {
           layoutId = uuidv6().slice(-12);
           tvWidget.save((layout: Partial<Record<string, []>>) => {
             if (!layout['charts']) return;
@@ -281,7 +283,7 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
             // console.log("create layout", chartId) 
           })
         } else {
-          const keys = drawingsKey?.split('/');
+          const keys = load.drawingsKey?.split('/');
           layoutId = keys![0]
           chartId =  keys![1]
         }
