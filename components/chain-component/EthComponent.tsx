@@ -20,11 +20,12 @@ const defaultWidgetProps: Partial<ChartingLibraryWidgetOptions> = {
     "header_fullscreen_button",
     "save_chart_properties_to_local_storage",
     "use_localstorage_for_settings",
+    "study_templates"
   ],
   load_last_chart: true,
   client_id: "tradingview.com",
   user_id: "public_user_id",
-  auto_save_delay: 5,
+  auto_save_delay: 3,
   autosize: false,
   debug: false,
   theme: "dark",

@@ -7,6 +7,7 @@ import {
   ResolutionString,
   widget,
 } from "@/public/static/charting_library"
+import { loadLocalStorage, saveLocalStorage, removeLocalStorage } from "./SaveLoadDrawings";
 import style from "./index.module.css"
 import { createDataFeed } from "@/hooks/ref_datafeed"
 import { prettyNumber } from "../utils/chart-number"
@@ -16,6 +17,7 @@ import {
 import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input, Switch, Select, SelectItem} from "@nextui-org/react";
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import {v6 as uuidv6} from "uuid";
 
 interface TVChartContainerProps extends Partial<ChartingLibraryWidgetOptions> {
   searchResponse?: any
@@ -252,148 +254,169 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
         setChartTypes(switchType);
       });
     })
-    tvWidget.onChartReady(() => {
-      tvWidget.subscribe("drawing_event", (id: string, type: string) => {
-        let temp: { sources: unknown[]; groups: unknown[] } | undefined
+    tvWidget.onChartReady(async () => {
+      const {states, drawingsKey} = await loadLocalStorage()
+      tvWidget
+        .activeChart()
+        .applyLineToolsState(states)
+        .then(() => {
+          console.log("Drawings state restored!", states)
+        })
 
-        const lineToolsState: any = tvWidget.activeChart().getLineToolsState()
-        let localState = window.localStorage.getItem("tvWidgetLineToolsState")
 
-        switch (type) {
+      tvWidget.activeChart().reloadLineToolsFromServer();
+      tvWidget.subscribe("drawing_event", async (id: string, type: string) => {
+        // let updateDrawings: LineToolsAndGroupsState = states;
+        let drawings: LineToolsAndGroupsState;
+        let layoutId: string = "";
+        let chartId: string | number = "";
+
+        // console.log("drawing_event", id, type)
+
+        if (!drawingsKey || drawingsKey == undefined) {
+          layoutId = uuidv6().slice(-12);
+          tvWidget.save((layout: Partial<Record<string, []>>) => {
+            if (!layout['charts']) return;
+            chartId = layout['charts'][layout['charts'].length-1]['chartId']
+            // console.log("create layout", chartId) 
+          })
+        } else {
+          const keys = drawingsKey?.split('/');
+          layoutId = keys![0]
+          chartId =  keys![1]
+        }
+
+        drawings = tvWidget.activeChart().getLineToolsState()
+        switch(type) {
+          case "properties_changed":
           case "create":
-            console.log(lineToolsState)
-            if (localState === null || localState === undefined) {
-              temp = {
-                sources: Array.from(new Set([...lineToolsState.sources!])),
-                groups: Array.from(new Set([...lineToolsState.groups!])),
-              }
-            } else {
-              localState = JSON.parse(localState)
-              const mapState: any = {
-                groups: new Map(
-                  (localState as unknown as LineToolsAndGroupsState).groups,
-                ),
-                sources: new Map(
-                  (localState as unknown as LineToolsAndGroupsState).sources,
-                ),
-              }
-              temp = {
-                sources: Array.from(
-                  new Set([...lineToolsState.sources!, ...mapState.sources!]),
-                ),
-                groups: Array.from(
-                  new Set([...lineToolsState.groups!, ...mapState.groups!]),
-                ),
-              }
-            }
-            window.localStorage.setItem(
-              "tvWidgetLineToolsState",
-              JSON.stringify(temp),
-            )
-            try {
-              const newLinesArray = Array.from(lineToolsState.sources.entries()).pop() as [string, any] | undefined;
-              const newLinesObj: any = newLinesArray ? newLinesArray[1] : undefined;
-              let requestDataTrendLine = {
-                'token_id': token_id_org, 'chain': chain, 'x1': newLinesObj?.state?.points[0]?.time_t,
-                'y1': newLinesObj?.state?.points[0]?.price, 'x2': newLinesObj?.state?.points[1]?.time_t,
-                'y2': newLinesObj?.state?.points[1]?.price, 'key': newLinesObj.id
-              }
-              if (isChecked) {
-                setSendingData(requestDataTrendLine)
-                setIsPopupVisible(true)
-              }
-
-            } catch (e) {
-              console.log(e)
-            }
+          case "move":
+          case "points_changed":
+          case "click":
+          case "show":
+          case "hide":
+            console.log(type, id, drawings)
+            await saveLocalStorage(layoutId, chartId, drawings)
             break
 
           case "remove":
             if(isChecked){
-            try{
-              if(id){
-                let requestData = {'token_id':token_id_org,'chain':chain, 'key':id,'type':'delete'}
-                handleTrendLineSaving(requestData);
+              try{
+                if(id){
+                  let requestData = {'token_id':token_id_org,'chain':chain, 'key':id,'type':'delete'}
+                  handleTrendLineSaving(requestData);
+                }
+              }
+              catch(e){
+                console.log(e)
               }
             }
-            catch(e){
-              console.log(e)
-            }
-          }
-            if (localState === null || localState === undefined) {
-              temp = {
-                sources: Array.from(
-                  new Set(
-                    [...lineToolsState.sources!].filter(([key]) => key !== id),
-                  ),
-                ),
-                groups: Array.from(
-                  new Set(
-                    [...lineToolsState.groups!].filter(([key]) => key !== id),
-                  ),
-                ),
-              }
-            } else {
-              localState = JSON.parse(localState)
-              const mapState: any = {
-                groups: new Map(
-                  (localState as unknown as LineToolsAndGroupsState).groups,
-                ),
-                sources: new Map(
-                  (localState as unknown as LineToolsAndGroupsState).sources,
-                ),
-              }
-              const filterSources = new Set(
-                [...lineToolsState.sources!, ...mapState.sources!].filter(
-                  ([key]) => key !== id,
-                ),
-              )
-              const filterGroups = new Set(
-                [...lineToolsState.groups!, ...mapState.groups!].filter(
-                  ([key]) => key !== id,
-                ),
-              )
-              temp = {
-                sources: Array.from(filterSources),
-                groups: Array.from(filterGroups),
-              }
-            }
-            window.localStorage.setItem(
-              "tvWidgetLineToolsState",
-              JSON.stringify(temp),
-            )
-            break
 
-          case "move":
-            console.log("Line tools state====>", lineToolsState)
+            drawings = tvWidget.activeChart().getLineToolsState()
+            // console.log("remove", removed, )
+            await removeLocalStorage(layoutId, chartId, drawings)
             break
 
           default:
             break
         }
+
+        // switch(type) {
+        //   case "properties_changed":
+        //     drawings = tvWidget.activeChart().getLineToolsState()
+        //     // if (!drawingsKey || drawingsKey == undefined) {
+        //     //   layoutId = uuidv6().slice(-12)
+        //     // }
+
+        //     // const keyss = drawingsKey?.split('/');
+        //     // layoutId = keyss![0]
+        //     // chartId =  keyss![1]
+
+        //     if (drawings.sources) {
+        //       if (updateDrawings.sources) {
+        //         for (let [key, state] of drawings.sources) {
+        //           updateDrawings.sources.set(key, state)
+        //         }
+        //       }
+        //     }
+
+        //     // console.log("properties_changed", drawings, updateDrawings)
+        //     await saveLocalStorage(layoutId, chartId, drawings)
+        //     break
+
+        //   case "create":
+        //     // if (!drawingsKey || drawingsKey == undefined) {
+        //     //   layoutId = uuidv6().slice(-12)
+        //     // }
+
+        //     // const keyss = drawingsKey?.split('/');
+        //     // layoutId = keyss![0]
+        //     // chartId =  keyss![1]
+
+        //     drawings = tvWidget.activeChart().getLineToolsState()
+        //     if (drawings.sources) {
+        //       if (updateDrawings.sources) {
+        //         for (let [key, state] of drawings.sources) {
+        //           updateDrawings.sources.set(key, state)
+        //         }
+        //       }
+        //     }
+
+        //     // console.log("create", type, drawingsKey, updateDrawings, )
+        //     await saveLocalStorage(layoutId, chartId, drawings)
+        //     break
+
+        //   case "remove":
+        //     if(isChecked){
+        //       try{
+        //         if(id){
+        //           let requestData = {'token_id':token_id_org,'chain':chain, 'key':id,'type':'delete'}
+        //           handleTrendLineSaving(requestData);
+        //         }
+        //       }
+        //       catch(e){
+        //         console.log(e)
+        //       }
+        //     }
+        //     drawings = tvWidget.activeChart().getLineToolsState()
+        //     let removed: LineToolsAndGroupsState = drawings;
+
+        //     // console.log("remove", removed, )
+        //     await removeLocalStorage(layoutId, chartId, removed)
+        //     break
+
+        //   case "move":
+        //     drawings = tvWidget.activeChart().getLineToolsState()
+        //     console.log("move", id, drawings)
+        //     await saveLocalStorage(layoutId, chartId, drawings)
+        //     break
+
+        //   case "points_changed":
+        //     drawings = tvWidget.activeChart().getLineToolsState()
+        //     console.log("points_changed", id, drawings)
+        //     break
+
+        //   case "click":
+        //     drawings = tvWidget.activeChart().getLineToolsState()
+        //     console.log("click", id, drawings)
+        //     break
+
+        //   case "show":
+        //     console.log("show")
+        //     break
+
+        //   case "hide":
+        //     console.log("hide")
+        //     break
+
+        //   default:
+        //     break
+        // }
       })
-
-      let lineToolsState = window.localStorage.getItem("tvWidgetLineToolsState")
-      if (lineToolsState) {
-        lineToolsState = JSON.parse(lineToolsState)
-        const mapState: LineToolsAndGroupsState = {
-          groups: new Map(
-            (lineToolsState as unknown as LineToolsAndGroupsState).groups,
-          ),
-          sources: new Map(
-            (lineToolsState as unknown as LineToolsAndGroupsState).sources,
-          ),
-        }
-
-        if (!mapState) return
-
-        tvWidget
-          .activeChart()
-          .applyLineToolsState(mapState)
-          .then(() => {
-            console.log("Drawings state restored!", mapState)
-          })
-      }
+      tvWidget.subscribe("mouse_up", async (event) => {
+        const drawings = tvWidget.activeChart().getLineToolsState()
+        console.log("mouse_up", event, drawings)
+      })
       if (avgPrice) {
         const latestBarTime = tvWidget.activeChart().getVisibleRange().from
 
