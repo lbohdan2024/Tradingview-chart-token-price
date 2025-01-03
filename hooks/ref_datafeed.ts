@@ -139,7 +139,6 @@ export class DataFeed {
       if (this.chartType === "marketcap") {
         const getSupplyQuery = `query {token(input: { address: "${this.tokenIdOrg}", networkId: ${this.chainId} }) { totalSupply }}`;
         const supplyResponse = await makeApiRequest(getSupplyQuery, `${process.env.NEXT_PUBLIC_CODEX_API}`);
-        console.log("supplyResponse:", supplyResponse);
         this.totalSupply = parseFloat(supplyResponse.data.token.totalSupply);
       }
   
@@ -159,7 +158,6 @@ export class DataFeed {
       }`;
   
       const data = await makeApiRequest(getTokenInfoQuery, `${process.env.NEXT_PUBLIC_CODEX_API}`);
-      console.log("getTokenInfoQuery data:", data);
   
       if (!data || !data.data || !data.data.getBars) {
         console.log("No data returned from API");
@@ -168,7 +166,6 @@ export class DataFeed {
       }
   
       const formattedData = await DataFeed.formatBars(data);
-      console.log("formattedData:", formattedData);
   
       if (formattedData.length === 0) {
         console.log("No formatted data available");
@@ -202,9 +199,8 @@ export class DataFeed {
         return;
       }
   
-      console.log("Last candle info: ", bars[bars.length - 1]);
       this.chartDataCache = bars;
-      DataFeed.lastCandleTime = bars[bars.length - 1].time / 1000; // Update lastCandleTime only if new data is fetched
+      DataFeed.lastCandleTime = bars[bars.length - 1].time / 1000;
       onHistoryCallback(bars, { noData: false });
     } catch (error) {
       console.log("[getBars]: Get error", error);
@@ -219,13 +215,6 @@ export class DataFeed {
     subscriberUID: string,
     onResetCacheNeededCallback: () => void
 ): void {
-
-    const lastCandleHistoryData = this.chartDataCache[this.chartDataCache.length - 1];
-    let lastCandleHistoryTime = lastCandleHistoryData.time;
-    let lastCandleHistoryClose = lastCandleHistoryData.close;
-
-    console.log(this.chartDataCache[this.chartDataCache.length - 1]);
-
     if (DataFeed.timeoutId) {
       clearTimeout(DataFeed.timeoutId);
     }
@@ -242,23 +231,25 @@ export class DataFeed {
               lastCandle.time,
               lastCandle.close
             );
+
             const latestData = JSON.parse(data.response_data)[0];
+            
             if (latestData) {
               const lastPrice = {
                 time: Number(latestData.time),
                 low: Math.min(lastCandle.low, Number(latestData.low)),
                 high: Math.max(lastCandle.high, Number(latestData.high)),
-                open: lastCandle.open !== undefined ? lastCandle.open : Number(latestData.close),
+                open: lastCandle.open !== undefined ? lastCandle.open : Number(latestData.open),
                 close: Number(latestData.close),
                 volume: Math.floor(latestData.vol),
               };
-              
-              lastPrice.low = Math.min(lastPrice.low, lastPrice.close);
-              lastPrice.high = Math.max(lastPrice.high, lastPrice.close);
-            
+          
+              lastPrice.low = Math.min(lastPrice.low, Number(latestData.low));  
+              lastPrice.high = Math.max(lastPrice.high, Number(latestData.high));  
+          
               this.chartDataCache[this.chartDataCache.length - 1] = lastPrice;
               onRealtimeCallback(lastPrice);
-            }
+          }
         } catch (error) {
           console.error("Error fetching latest data:", error);
         }
