@@ -215,6 +215,7 @@ export class DataFeed {
     subscriberUID: string,
     onResetCacheNeededCallback: () => void
 ): void {
+
     if (DataFeed.timeoutId) {
       clearTimeout(DataFeed.timeoutId);
     }
@@ -231,9 +232,7 @@ export class DataFeed {
               lastCandle.time,
               lastCandle.close
             );
-
             const latestData = JSON.parse(data.response_data)[0];
-            
             if (latestData) {
               const lastPrice = {
                 time: Number(latestData.time),
