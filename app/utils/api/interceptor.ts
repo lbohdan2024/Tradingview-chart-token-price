@@ -28,7 +28,7 @@ apiClient.interceptors.response.use(
     const originalRequest = error.config
 
     try {
-      if (error.response.status === 401 && !originalRequest._retry) {
+      if (error.response && error.response.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true
         const refreshToken = localStorage.getItem("refreshToken")
 
@@ -52,7 +52,7 @@ apiClient.interceptors.response.use(
             handleLogout()
           }
         }
-      } else if (error.response.status == 404) {
+      } else if (error.response && error.response.status == 404) {
         return null
       } else if (originalRequest._retry) {
         window.location.href = "/login"

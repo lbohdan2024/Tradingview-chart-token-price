@@ -6,10 +6,12 @@ import {
   LineToolsAndGroupsState,
   ResolutionString,
   widget,
+  ISymbolValueFormatter,
+  SymbolValueFormatterFormatOptions,
 } from "@/public/static/charting_library"
 import { loadLocalStorage, saveLocalStorage, removeLocalStorage } from "./SaveLoadDrawings";
 import style from "./index.module.css"
-import { createDataFeed } from "@/hooks/ref_datafeed"
+import { DataFeed } from "@/hooks/ref_datafeed";
 import { prettyNumber } from "../utils/chart-number"
 import {
   savingTrendLine
@@ -18,14 +20,10 @@ import { Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, Button, Input
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import {v6 as uuidv6} from "uuid";
+import { IsPopupVisible } from "./isPopVisible";
 
 interface TVChartContainerProps extends Partial<ChartingLibraryWidgetOptions> {
   searchResponse?: any
-}
-
-interface LineToolsState {
-  sources: any[]
-  groups: any[]
 }
 
 export const TVChartContainer: React.FC<TVChartContainerProps> = ({
@@ -78,10 +76,9 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
     setIsChecked(event.target.checked);
   };
 
-  const pathName = usePathname()
-  const search = useSearchParams()
-  const chartContainerRef =
-    useRef<HTMLDivElement>() as React.MutableRefObject<HTMLInputElement>
+  const pathName = usePathname();
+  const search = useSearchParams();
+  const chartContainerRef = useRef<HTMLDivElement>() as React.MutableRefObject<HTMLInputElement>;
 
   const getChartType = () => {
     let chartType = window.localStorage.getItem("tvChartType");
@@ -97,32 +94,89 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
     }
     return { chartType, title, content };
   };
+  
+  const priceFormatterFactory = (
+    symbolInfo: any, 
+    minTick: any
+  ): ISymbolValueFormatter | null => {
+    
+    if (symbolInfo === null) {
+      return null;
+    }
+    if (symbolInfo.format === "price") {
+      return {
+        format: (price: number, options?: SymbolValueFormatterFormatOptions) => {
+          if (price >= 1000000000) {
+            return `${(price / 1000000000).toFixed(2)}B`;
+          }
+  
+          if (price >= 1000000) {
+            return `${(price / 1000000).toFixed(2)}M`;
+          }
+  
+          if (price >= 1000) {
+            return `${(price / 1000).toFixed(2)}K`;
+          }
+  
+          return prettyNumber(price);
+        },
+      };
+    }
+    if (symbolInfo.format === "volume") {
+      return {
+        format: (price: number, options?: SymbolValueFormatterFormatOptions) => {
+          if (price >= 1000000000) {
+            return `${(price / 1000000000).toFixed(3)}B`;
+          }
+  
+          if (price >= 1000000) {
+            return `${(price / 1000000).toFixed(3)}M`;
+          }
+  
+          if (price >= 1000) {
+            return `${(price / 1000).toFixed(3)}K`;
+          }
+  
+          return price.toFixed(2);
+        },
+      };
+    }
+    return null;
+  };
+
+  // Load data from local storage
+  let chn: string | null;
+  let token_id: string;
 
   useEffect(() => {
-    let chn = localStorage.getItem("chain")
-    let token_id = "0x812ba41e071c7b7fa4ebcfb62df5f45f6fa853ee"
+    chn = localStorage.getItem("chain");
+    token_id = "0x812ba41e071c7b7fa4ebcfb62df5f45f6fa853ee";
 
     if (chn && chn === "eth") {
       localStorage.setItem(
         "tokenName",
         searchResponse?.token_info?.token_info_dex.token_symbol ?? "Neiro",
-      )
-      token_id = "0x812ba41e071c7b7fa4ebcfb62df5f45f6fa853ee"
+      );
+      token_id = "0x812ba41e071c7b7fa4ebcfb62df5f45f6fa853ee";
     } else if (chn && chn === "sol") {
       localStorage.setItem(
         "tokenName",
         searchResponse?.token_info?.token_info_dex.token_symbol ?? "POPCAT",
-      )
-      token_id = "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr"
+      );
+      token_id = "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr";
     }
+  }, []);
 
+  // ..
+  useEffect(() => {
     const tokenId =
       (searchResponse?.token_info?.qoute_token
         ? searchResponse?.token_info?.pool_address
         : searchResponse?.token_info?.token_id ||
           searchResponse?.token_info?.token_id) ?? token_id
 
-    let chain: string
+    let chain: string;
+
     const quoteToken = searchResponse?.token_info?.qoute_token || ""
     const walletId = searchResponse?.token_info?.user_wallet_id || ""
     const token_id_org = search.get("search") || tokenId
@@ -133,25 +187,21 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
       chain = "eth"
     }
 
-    let chartType = window.localStorage.getItem("tvChartType");
-    if (chartType == null) chartType = 'price';
-
-    const datafeed = createDataFeed(
+    const chartType = window.localStorage.getItem("tvChartType") || 'price';
+    const datafeed = new DataFeed(
       tokenId,
       chain,
       chartType,
       quoteToken,
       walletId,
       token_id_org,
-    )
-    const resolution: any =
-      localStorage.getItem("tradingview.chart.lastUsedTimeBasedResolution") ||
-      ""
-    const properties: any = localStorage.getItem("tradingview.chartproperties")
-    const mainProps: any = localStorage.getItem(
-      "tradingview.chartproperties.mainSeriesProperties",
-    )
-    const chartProperties = properties ? JSON.parse(properties) : {}
+    );
+
+    const resolution: string = localStorage.getItem("tradingview.chart.lastUsedTimeBasedResolution") || "";
+    const properties: string | null = localStorage.getItem("tradingview.chartproperties");
+    const mainProps: string | null = localStorage.getItem("tradingview.chartproperties.mainSeriesProperties");
+    const chartProperties: { timezone?: string } = properties ? JSON.parse(properties) : {};
+    
     const widgetOptions: ChartingLibraryWidgetOptions = {
       symbol: props.symbol,
       datafeed: datafeed,
@@ -161,7 +211,7 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
       locale: props.locale as LanguageCode,
       load_last_chart: props.load_last_chart,
       enabled_features: props.enabled_features,
-      timezone: chartProperties?.timezone || props.timezone, // Use timezone from localStorage or fallback
+      timezone: chartProperties?.timezone as ChartingLibraryWidgetOptions["timezone"] || props.timezone,
       charts_storage_api_version: props.charts_storage_api_version,
       client_id: props.client_id,
       user_id: props.user_id,
@@ -170,67 +220,17 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
       theme: props.theme,
       time_frames: props.time_frames,
       custom_formatters: {
-        priceFormatterFactory: (symbolInfo, minTick) => {
-          if (symbolInfo === null) {
-            return null
-          }
-          if (symbolInfo.format === "price") {
-            return {
-              format: (price, signPositive) => {
-                if (price >= 1000000000) {
-                  return `${(price / 1000000000).toFixed(2)}B`
-                }
-    
-                if (price >= 1000000) {
-                  return `${(price / 1000000).toFixed(2)}M`
-                }
-    
-                if (price >= 1000) {
-                  return `${(price / 1000).toFixed(2)}K`
-                }
-
-                return prettyNumber(price)
-              },
-            }
-          }
-          if (symbolInfo.format === "volume") {
-            return {
-              format: (price, signPositive) => {
-                if (price >= 1000000000) {
-                  return `${(price / 1000000000).toFixed(3)}B`
-                }
-
-                if (price >= 1000000) {
-                  return `${(price / 1000000).toFixed(3)}M`
-                }
-
-                if (price >= 1000) {
-                  return `${(price / 1000).toFixed(3)}K`
-                }
-
-                return price.toFixed(2)
-              },
-            }
-          }
-
-          return null // The default formatter will be used.
-        },
+        priceFormatterFactory: priceFormatterFactory, 
       },
-    }
+    };
 
-    async function handleTrendLineSaving(requestData: any) {
-      try {
-        const data = await savingTrendLine(requestData || "");
-      } catch (error) {
-        console.error("Error saving trend line data:", error);
-      }
-    }
-
-    const tvWidget = new widget(widgetOptions)
+    // Chart type
+    const tvWidget = new widget(widgetOptions);
+    
     tvWidget.headerReady().then(() => {
-      const { chartType, title, content } = getChartType();
+      const { chartType, content, title } = getChartType();
 
-      var button = tvWidget.createButton();
+      let button = tvWidget.createButton();
       button.setAttribute('title', title);
       button.innerHTML = content;
       button.addEventListener('click', function () {
@@ -253,42 +253,41 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
         button.innerHTML = switchContent;
         setChartTypes(switchType);
       });
-    })
+    });
+
     tvWidget.onChartReady(async () => {
-      const load = await loadLocalStorage()
+      const load = await loadLocalStorage();
       if (load != undefined) {
         tvWidget
-        .activeChart()
-        .applyLineToolsState(load.states)
-        .then(() => {
-          console.log("Drawings state restored!", load.states)
-        })
+          .activeChart()
+          .applyLineToolsState(load.states)
+          .then(() => {
+            console.log("Drawings state restored!", load.states)
+          });
       }
-
 
       tvWidget.activeChart().reloadLineToolsFromServer();
       tvWidget.subscribe("drawing_event", async (id: string, type: string) => {
-        // let updateDrawings: LineToolsAndGroupsState = states;
-        let drawings: LineToolsAndGroupsState;
         let layoutId: string = "";
         let chartId: string | number = "";
-
-        // console.log("drawing_event", id, type)
+        let drawings: LineToolsAndGroupsState;
 
         if (!load?.drawingsKey || load?.drawingsKey == undefined) {
+          
           layoutId = uuidv6().slice(-12);
           tvWidget.save((layout: Partial<Record<string, []>>) => {
             if (!layout['charts']) return;
             chartId = layout['charts'][layout['charts'].length-1]['chartId']
-            // console.log("create layout", chartId) 
-          })
+          });
+
         } else {
           const keys = load.drawingsKey?.split('/');
+          
           layoutId = keys![0]
           chartId =  keys![1]
         }
 
-        drawings = tvWidget.activeChart().getLineToolsState()
+        drawings = tvWidget.activeChart().getLineToolsState();
         switch(type) {
           case "properties_changed":
           case "create":
@@ -297,219 +296,73 @@ export const TVChartContainer: React.FC<TVChartContainerProps> = ({
           case "click":
           case "show":
           case "hide":
-            console.log(type, id, drawings)
-            await saveLocalStorage(layoutId, chartId, drawings)
-            break
+            await saveLocalStorage(layoutId, chartId, drawings);
+            break;
 
           case "remove":
             if(isChecked){
               try{
                 if(id){
-                  let requestData = {'token_id':token_id_org,'chain':chain, 'key':id,'type':'delete'}
+                  const requestData = {'token_id':token_id_org,'chain':chain, 'key':id,'type':'delete'};
                   handleTrendLineSaving(requestData);
                 }
               }
               catch(e){
-                console.log(e)
+                console.log(e);
               }
             }
-
-            drawings = tvWidget.activeChart().getLineToolsState()
-            // console.log("remove", removed, )
-            await removeLocalStorage(layoutId, chartId, drawings)
-            break
+            drawings = tvWidget.activeChart().getLineToolsState();
+            await removeLocalStorage(layoutId, chartId, drawings);
+            break;
 
           default:
-            break
-        }
+            break;
+        };
 
-        // switch(type) {
-        //   case "properties_changed":
-        //     drawings = tvWidget.activeChart().getLineToolsState()
-        //     // if (!drawingsKey || drawingsKey == undefined) {
-        //     //   layoutId = uuidv6().slice(-12)
-        //     // }
-
-        //     // const keyss = drawingsKey?.split('/');
-        //     // layoutId = keyss![0]
-        //     // chartId =  keyss![1]
-
-        //     if (drawings.sources) {
-        //       if (updateDrawings.sources) {
-        //         for (let [key, state] of drawings.sources) {
-        //           updateDrawings.sources.set(key, state)
-        //         }
-        //       }
-        //     }
-
-        //     // console.log("properties_changed", drawings, updateDrawings)
-        //     await saveLocalStorage(layoutId, chartId, drawings)
-        //     break
-
-        //   case "create":
-        //     // if (!drawingsKey || drawingsKey == undefined) {
-        //     //   layoutId = uuidv6().slice(-12)
-        //     // }
-
-        //     // const keyss = drawingsKey?.split('/');
-        //     // layoutId = keyss![0]
-        //     // chartId =  keyss![1]
-
-        //     drawings = tvWidget.activeChart().getLineToolsState()
-        //     if (drawings.sources) {
-        //       if (updateDrawings.sources) {
-        //         for (let [key, state] of drawings.sources) {
-        //           updateDrawings.sources.set(key, state)
-        //         }
-        //       }
-        //     }
-
-        //     // console.log("create", type, drawingsKey, updateDrawings, )
-        //     await saveLocalStorage(layoutId, chartId, drawings)
-        //     break
-
-        //   case "remove":
-        //     if(isChecked){
-        //       try{
-        //         if(id){
-        //           let requestData = {'token_id':token_id_org,'chain':chain, 'key':id,'type':'delete'}
-        //           handleTrendLineSaving(requestData);
-        //         }
-        //       }
-        //       catch(e){
-        //         console.log(e)
-        //       }
-        //     }
-        //     drawings = tvWidget.activeChart().getLineToolsState()
-        //     let removed: LineToolsAndGroupsState = drawings;
-
-        //     // console.log("remove", removed, )
-        //     await removeLocalStorage(layoutId, chartId, removed)
-        //     break
-
-        //   case "move":
-        //     drawings = tvWidget.activeChart().getLineToolsState()
-        //     console.log("move", id, drawings)
-        //     await saveLocalStorage(layoutId, chartId, drawings)
-        //     break
-
-        //   case "points_changed":
-        //     drawings = tvWidget.activeChart().getLineToolsState()
-        //     console.log("points_changed", id, drawings)
-        //     break
-
-        //   case "click":
-        //     drawings = tvWidget.activeChart().getLineToolsState()
-        //     console.log("click", id, drawings)
-        //     break
-
-        //   case "show":
-        //     console.log("show")
-        //     break
-
-        //   case "hide":
-        //     console.log("hide")
-        //     break
-
-        //   default:
-        //     break
-        // }
-      })
-      tvWidget.subscribe("mouse_up", async (event) => {
-        const drawings = tvWidget.activeChart().getLineToolsState()
-        console.log("mouse_up", event, drawings)
-      })
-      if (avgPrice) {
-        const latestBarTime = tvWidget.activeChart().getVisibleRange().from
-
-        tvWidget.activeChart().createShape(
-          { price: avgPrice, time: latestBarTime },
-          {
-            shape: "horizontal_line",
-            text: "Average Price",
-            overrides: {
-              linecolor: "#0000FF", // Blue color
-              linewidth: 2,
-              linestyle: 2, // Dotted line style
+        if (avgPrice) {
+          const latestBarTime = tvWidget.activeChart().getVisibleRange().from;
+          tvWidget.activeChart().createShape(
+            { price: avgPrice, time: latestBarTime },
+            {
+              shape: "horizontal_line",
+              text: "Average Price",
+              overrides: {
+                linecolor: "#0000FF", // Blue color
+                linewidth: 2,
+                linestyle: 2, // Dotted line style
+              },
+              disableSave: true,
+              lock: true,
             },
-            disableSave: true,
-            lock: true,
-          },
-        )
-      }
-    })
+          );
+        }
+      });
+    });
 
     return () => {
-      tvWidget.onChartReady(() => {
-        // tvWidget.activeChart();
-      })
-      tvWidget.remove()
-    }
-  })
+      tvWidget.remove();
+    };
+  }, []);
+
 
   return (
     <>
       <ToastContainer />
-      {isPopupVisible && (
-        <Modal isOpen={isPopupVisible} onOpenChange={(isOpen) => setIsPopupVisible(isOpen)}>
-          <ModalContent>
-            {() => (
-              <>
-                <ModalHeader className="flex flex-col gap-1">
-                  Trend Line Alert Confirmation
-                </ModalHeader>
-                <ModalBody>
-                  <Input
-                    isRequired
-                    type="text"
-                    label="Alert Title"
-                    placeholder="Enter alert title"
-                    value={alertTitle}
-                    onChange={handleTitleChange}
-                    className="max-w-xs"
-                  />
-                  <Select
-                    isRequired
-                    label="Crossing"
-                    defaultSelectedKeys={["Crossing Up"]}
-                    className="max-w-xs"
-                    onChange={handleChange}
-                  >
-                    <SelectItem key="Crossing Up" value="Crossing Up">
-                      Crossing Up
-                    </SelectItem>
-                    <SelectItem key="Crossing Down" value="Crossing Down">
-                      Crossing Down
-                    </SelectItem>
-                  </Select>
-                  <p className="text-white">Alert will automatically expiry in 30days!</p>
-                </ModalBody>
-                <ModalFooter>
-                  <Button color="danger" variant="light" onClick={() => setAlertTitle("")}>
-                    Clear
-                  </Button>
-                  <Button color="primary" onPress={onSave}>
-                    Save
-                  </Button>
-                </ModalFooter>
-              </>
-            )}
-          </ModalContent>
-        </Modal>
-      )}
+      <IsPopupVisible 
+        isPopupVisible={isPopupVisible}
+        setIsPopupVisible={setIsPopupVisible}
+        alertTitle={alertTitle}
+        setAlertTitle={setAlertTitle}
+        onSave={onSave}
+        onClose={onClose}
+        handleChange={handleChange}
+        handleTitleChange={handleTitleChange}
+      /> 
       <div className="flex items-center justify-end">
         <span className="mr-2">Chart Alert</span>
         <Switch defaultSelected={isChecked} color="success" onChange={handleSwitchChange} />
       </div>
-      {
-        chartTypes === "marketcap" ? (
-          <div ref={chartContainerRef} className={style.TVChartContainer} />
-        ) : (
-          <div ref={chartContainerRef} className={style.TVChartContainer} />
-        )
-        
-      }
       <div ref={chartContainerRef} className={style.TVChartContainer} />
-    </>)
-
-}
+    </>
+  );
+};
