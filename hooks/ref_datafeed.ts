@@ -29,13 +29,14 @@ interface Point {
 export class DataFeed {
   static lastCandleTime = 0;
   static timeoutId: NodeJS.Timeout | null = null;
-  private lastFetchTime: number | undefined;
   private chartDataCache: any[];
   private totalSupply: number;
   private chainId: number;
   private tokenSymbol: string;
   private tokenName: string;
   private configurationData: any;
+  private lastFetchTime: number | undefined;
+  private isSubscribed: boolean = false;
 
   constructor(
     private tokenId: string,
@@ -43,7 +44,7 @@ export class DataFeed {
     private chartType: string,
     private quoteToken: string | null,
     private walletId: string | null,
-    private tokenIdOrg: string | null
+    private tokenIdOrg?: any,
   ) {
     this.chartDataCache = [];
     this.totalSupply = 0;
@@ -133,8 +134,6 @@ export class DataFeed {
     const toTime = DataFeed.lastCandleTime === 0 ? to : DataFeed.lastCandleTime;
     const fromTime = toTime - timestring(period) * 600;
   
-    console.log("Fetching bars from:", new Date(fromTime * 1000), "to:", new Date(toTime * 1000));
-  
     try {
       if (this.chartType === "marketcap") {
         const getSupplyQuery = `query {token(input: { address: "${this.tokenIdOrg}", networkId: ${this.chainId} }) { totalSupply }}`;
@@ -193,14 +192,15 @@ export class DataFeed {
           volume: bar.volume,
         }));
   
+        console.log("Bars: ", bars);
       if (bars.length === 0) {
         console.log("No bars available after filtering and mapping");
         onHistoryCallback([], { noData: true });
         return;
       }
   
-      this.chartDataCache = bars;
-      DataFeed.lastCandleTime = bars[bars.length - 1].time / 1000;
+      this.chartDataCache.push(...bars);
+      console.log("Bars: ", this.chartDataCache[this.chartDataCache.length - 1]);
       onHistoryCallback(bars, { noData: false });
     } catch (error) {
       console.log("[getBars]: Get error", error);
@@ -208,64 +208,91 @@ export class DataFeed {
     }
   }
 
-  subscribeBars(
+  async subscribeBars(
     symbolInfo: LibrarySymbolInfo,
     resolution: ResolutionString,
     onRealtimeCallback: SubscribeBarsCallback,
     subscriberUID: string,
     onResetCacheNeededCallback: () => void
-): void {
+  ): Promise<void> {
 
-    if (DataFeed.timeoutId) {
-      clearTimeout(DataFeed.timeoutId);
+    console.log("subscribeBars called");
+
+    if (!checkInterval(resolution) || !this.chain) {
+      console.log("Invalid interval or chain");
     }
 
-    const fetchDataAndUpdateChart = async () => {
-        try {
-            const now = Date.now();
-            this.lastFetchTime = now;
+    if (this.chartDataCache.length > 0) {
+      const lastResolution = this.chartDataCache[this.chartDataCache.length - 1].resolution;
+      if (lastResolution !== resolution) {
+        this.chartDataCache = [];
+        onResetCacheNeededCallback();
+      }
+    }
 
-            const lastCandle = this.chartDataCache[this.chartDataCache.length - 1];
-            const data = await liveData(
-              resolution,
-              this.tokenIdOrg || '',
-              lastCandle.time,
-              lastCandle.close
-            );
-            const latestData = JSON.parse(data.response_data)[0];
-            if (latestData) {
-              const lastPrice = {
-                time: Number(latestData.time),
-                low: Math.min(lastCandle.low, Number(latestData.low)),
-                high: Math.max(lastCandle.high, Number(latestData.high)),
-                open: lastCandle.open !== undefined ? lastCandle.open : Number(latestData.open),
-                close: Number(latestData.close),
-                volume: Math.floor(latestData.vol),
-              };
-          
-              lastPrice.low = Math.min(lastPrice.low, Number(latestData.low));  
-              lastPrice.high = Math.max(lastPrice.high, Number(latestData.high));  
-          
-              this.chartDataCache[this.chartDataCache.length - 1] = lastPrice;
-              onRealtimeCallback(lastPrice);
+    if (this.isSubscribed) {
+      this.unsubscribeBars();
+    }
+    this.isSubscribed = true;
+
+    const fetchDataAndUpdateChart = async () => {
+      try {
+        const latestData = await liveData(
+          resolution,
+          this.tokenId,
+          this.chartDataCache[this.chartDataCache.length - 1].time,
+          this.chartDataCache[this.chartDataCache.length - 1].close
+        );
+
+        const latestDataParsed = JSON.parse(latestData.response_data)[0];
+
+        if (latestDataParsed) {
+          const low = Number(latestDataParsed.low);
+          const high = Number(latestDataParsed.high);
+          const open = Number(latestDataParsed.open);
+          const close = Number(latestDataParsed.close);
+          const volume = Math.floor(latestDataParsed.vol);
+
+          const lastCandle = this.chartDataCache[this.chartDataCache.length - 1];
+         
+          if (this.chartType === "marketcap") {
+            lastCandle.low = low * this.totalSupply;
+            lastCandle.high = high * this.totalSupply;
+            lastCandle.open = open * this.totalSupply;
+            lastCandle.close = close * this.totalSupply;
+            lastCandle.vol = volume;
+          } else {
+            lastCandle.time = latestDataParsed.time * 1000;
+            lastCandle.close = close;
+            lastCandle.high = high;
+            lastCandle.low = low;
+            lastCandle.open = open;
+            lastCandle.vol = volume;
           }
-        } catch (error) {
-          console.error("Error fetching latest data:", error);
+
+          onRealtimeCallback(lastCandle);
         }
-        DataFeed.timeoutId = setTimeout(() => {
-          fetchDataAndUpdateChart();
-        }, 1000);
+      } catch (error) {
+        console.error("Error fetching latest data:", error);
+      }
+
+      console.log("Before setting timeout:", DataFeed.timeoutId);
+      DataFeed.timeoutId = setTimeout(fetchDataAndUpdateChart, 1000);
+      console.log("After setting timeout:", DataFeed.timeoutId);
     };
 
     fetchDataAndUpdateChart();
-  };
+  }
 
-  unsubscribeBars(subscriberUID: string): void {
+  unsubscribeBars(): void {
+    console.log("unsubscribeBars called");
     if (DataFeed.timeoutId) {
+      console.log("Clearing timeout:", DataFeed.timeoutId);
       clearTimeout(DataFeed.timeoutId);
       DataFeed.timeoutId = null;
     }
-  };
+    this.isSubscribed = false;
+  }
 
   static async formatBars(response: any) {
     const data = response.data
@@ -275,7 +302,6 @@ export class DataFeed {
       df = data.getBars
 
       DataFeed.lastCandleTime = df.t[0] as number;
-      console.log("Last candle time", new Date(DataFeed.lastCandleTime * 1000).getTime());
 
       let dfArray = df.c.map((cValue: number, index: number) => ({
         c: cValue,

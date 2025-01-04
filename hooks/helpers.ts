@@ -135,20 +135,23 @@ export async function getMarksFunc(walletId: string, tokenId: string) {
 export async function liveData(
   resolution: string,
   tokenId: string,
-  nextTime: number,
-  lastDefinedApiClose: any,
+  lastCandleTime: string,
+  lastCandleClosePrice: string,
 ) {
+
   try {
-	// console.log("liveData api call ===nextTime==>",nextTime)
-	// console.log("liveData api call ===last_close_price==>",lastDefinedApiClose)
-	// console.log("liveData api call ===tokenId==>",tokenId)
-    const response = await apiClient.get(paths.add_live_candle, {
-
-      params: { token_id: tokenId, resolution: resolution, time: nextTime, last_close_price:lastDefinedApiClose },
-    });
-
+    const response = await apiClient.get(
+      paths.add_live_candle, {
+        params: { 
+          token_id: tokenId, 
+          resolution: resolution, 
+          time: lastCandleTime, 
+          last_close_price:lastCandleClosePrice 
+        },
+      }
+    );
+    
     if (response) {
-		// console.log("response chart data===>",response.data)
       return response.data;
     } else {
       console.log("I'm from chart live update");
