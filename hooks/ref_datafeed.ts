@@ -1,11 +1,15 @@
-import timestring from "timestring";
+// hooks/datafeed.ts
+
+import timestring from "timestring"
+
 import {
   makeApiRequest,
   checkInterval,
   intervals,
   getMarksFunc,
   liveData,
-} from "./helpers";
+} from "./helpers"
+
 import {
   HistoryCallback,
   LibrarySymbolInfo,
@@ -13,340 +17,634 @@ import {
   ResolutionString,
   ResolveCallback,
   SubscribeBarsCallback,
-} from "@/public/static/charting_library";
-import { paths } from "@/config/config";
-import { Mark } from "@/config/interface";
+} from "@/public/static/charting_library"
+import { paths } from "@/config/config"
+import { Mark, Point } from "@/config/interface"
 
-interface Point {
-  time: number;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
+let lastCandleTime = 0
 
-export class DataFeed {
-  static lastCandleTime = 0;
-  static timeoutId: NodeJS.Timeout | null = null;
-  private chartDataCache: any[];
-  private totalSupply: number;
-  private chainId: number;
-  private tokenSymbol: string;
-  private tokenName: string;
-  private configurationData: any;
-  private lastFetchTime: number | undefined;
-  private isSubscribed: boolean = false;
+let timeoutId: NodeJS.Timeout | null = null
 
-  constructor(
-    private tokenId: string,
-    private chain: string,
-    private chartType: string,
-    private quoteToken: string | null,
-    private walletId: string | null,
-    private tokenIdOrg?: any,
-  ) {
-    this.chartDataCache = [];
-    this.totalSupply = 0;
+// Utility function to create a datafeed instance
+export function createDataFeed(
+  tokenId: string,
+  chain: string,
+  chartType: string,
+  quoteToken?: string,
+  walletId?: string,
+  token_id_org?: any,
+) {
+  // let timeoutId: any;
+  let totalSupply: number
+  if (timeoutId) {
+    clearTimeout(timeoutId)
+  }
+  // Determine chain_id from chain
+  const chainDict: {
+    [key: string]: number
+  } = {
+    eth: 1,
+    sol: 1399811149,
+  }
+  const chainId = chainDict[chain] || chainDict.sol
+  let tokenSymbol =
+    `${tokenId}:${chainId}` || `${paths.ChainIdDataFeed}:${chainId}`
+  let token_name = localStorage.getItem("tokenName") || paths.DefaultTokenName
+  let chartDataCache: Array<any[]> = []
 
-    if (DataFeed.timeoutId) {
-      clearTimeout(DataFeed.timeoutId);
-    }
-
-    const chainDict = {
-      eth: 1,
-      sol: 1399811149,
-    };
-    const chainId = chainDict[chain as keyof typeof chainDict] || chainDict.sol;
-    this.chainId = chainId;
-    this.tokenSymbol = `${tokenId}:${chainId}` || `${paths.ChainIdDataFeed}:${chainId}`;
-    this.tokenName = localStorage.getItem("tokenName") || paths.DefaultTokenName;
-
-    this.configurationData = {
-      supported_resolutions: ["1", "5", "15", "30", "60", "240", "1D", "1W"],
-      supports_marks: true,
-      supports_timescale_marks: false,
-      supports_time: true,
-    };
+  // Configuration Data
+  const configurationData = {
+    supported_resolutions: ["1", "5", "15", "30", "60", "240", "1D", "1W"],
+    supports_marks: true,
+    supported_marks: true,
+    supports_timescale_marks: false,
+    supports_time: true,
   }
 
-  onReady(callback: (data: any) => void): void {
-    setTimeout(() => callback(this.configurationData));
-  }
+  return {
+    onReady: (callback: any) => {
+      setTimeout(() => callback(configurationData))
+    },
 
-  async searchSymbols(
-    userInput: string,
-    exchange: string,
-    symbolType: string,
-    onResultReadyCallback: Function
-  ) {
-    const symbols = userInput.toLowerCase() === "wethusd" ? ["WETHUSD"] : [];
-    onResultReadyCallback(symbols);
-  }
+    searchSymbols: async (
+      userInput: string,
+      exchange: string,
+      symbolType: string,
+      onResultReadyCallback: Function,
+    ) => {
+      const symbols = userInput.toLowerCase() === "wethusd" ? ["WETHUSD"] : []
 
-  async resolveSymbol(
-    symbolName: string,
-    onSymbolResolvedCallback: (symbolInfo: any) => void,
-    onResolveErrorCallback: (error: string, details: any) => void
-  ): Promise<void> {
-    try {
-      const symbolInfo = {
-        ticker: this.tokenName,
-        name: this.tokenName,
-        description: this.tokenName.toUpperCase(),
-        timezone: "Etc/UTC",
-        exchange: "",
-        minmov: 1,
-        listed_exchange: "Uniswap",
-        format: "price",
-        pricescale: 100000000000,
-        supported_resolutions: ["1", "5", "15", "30", "60", "120", "240", "1D"],
-        type: "crypto",
-        session: "24x7",
-        has_intraday: true,
-        volume_precision: 11,
-        data_status: "streaming",
-      };
-      onSymbolResolvedCallback(symbolInfo);
-    } catch (error) {
-      onResolveErrorCallback("[resolveSymbol]: symbol not found", error);
-    }
-  }
+      onResultReadyCallback(symbols)
+    },
 
-  async getBars(
-    symbolInfo: LibrarySymbolInfo,
-    resolution: ResolutionString,
-    periodParams: PeriodParams,
-    onHistoryCallback: HistoryCallback,
-    onErrorCallback: (error: any) => void
-  ) {
-    if (DataFeed.timeoutId) {
-      clearTimeout(DataFeed.timeoutId);
-    }
-    if (!checkInterval(resolution) || !this.chain) {
-      return onErrorCallback("[getBars] Invalid interval");
-    }
-  
-    const { to, firstDataRequest } = periodParams;
-    const period = intervals[resolution];
-  
-    if (firstDataRequest) DataFeed.lastCandleTime = 0;
-    const toTime = DataFeed.lastCandleTime === 0 ? to : DataFeed.lastCandleTime;
-    const fromTime = toTime - timestring(period) * 600;
-  
-    try {
-      if (this.chartType === "marketcap") {
-        const getSupplyQuery = `query {token(input: { address: "${this.tokenIdOrg}", networkId: ${this.chainId} }) { totalSupply }}`;
-        const supplyResponse = await makeApiRequest(getSupplyQuery, `${process.env.NEXT_PUBLIC_CODEX_API}`);
-        this.totalSupply = parseFloat(supplyResponse.data.token.totalSupply);
-      }
-  
-      const getTokenInfoQuery = `query {
-        getBars(
-          symbol: "${this.tokenSymbol}",
-          quoteToken: ${this.quoteToken || "null"},
-          from: ${fromTime},
-          to: ${toTime},
-          statsType: FILTERED,
-          removeLeadingNullValues: true,
-          resolution: "${resolution}",
-          currencyCode: "USD"
-        ) {
-          c h l o t v s
-        }
-      }`;
-  
-      const data = await makeApiRequest(getTokenInfoQuery, `${process.env.NEXT_PUBLIC_CODEX_API}`);
-  
-      if (!data || !data.data || !data.data.getBars) {
-        console.log("No data returned from API");
-        onHistoryCallback([], { noData: true });
-        return;
-      }
-  
-      const formattedData = await DataFeed.formatBars(data);
-  
-      if (formattedData.length === 0) {
-        console.log("No formatted data available");
-        onHistoryCallback([], { noData: true });
-        return;
-      }
-  
-      interface Bar {
-        time: number;
-        low: number;
-        high: number;
-        open: number;
-        close: number;
-        volume: number;
-      }
-  
-      const bars: Bar[] = formattedData
-        .filter((bar: Bar) => bar.time >= fromTime && bar.time < to)
-        .map((bar: Bar) => ({
-          time: bar.time * 1000,
-          low: this.chartType === "price" ? bar.low : bar.low * this.totalSupply,
-          high: this.chartType === "price" ? bar.high : bar.high * this.totalSupply,
-          open: this.chartType === "price" ? bar.open : bar.open * this.totalSupply,
-          close: this.chartType === "price" ? bar.close : bar.close * this.totalSupply,
-          volume: bar.volume,
-        }));
-  
-        console.log("Bars: ", bars);
-      if (bars.length === 0) {
-        console.log("No bars available after filtering and mapping");
-        onHistoryCallback([], { noData: true });
-        return;
-      }
-  
-      this.chartDataCache.push(...bars);
-      console.log("Bars: ", this.chartDataCache[this.chartDataCache.length - 1]);
-      onHistoryCallback(bars, { noData: false });
-    } catch (error) {
-      console.log("[getBars]: Get error", error);
-      onErrorCallback(error);
-    }
-  }
-
-  async subscribeBars(
-    symbolInfo: LibrarySymbolInfo,
-    resolution: ResolutionString,
-    onRealtimeCallback: SubscribeBarsCallback,
-    subscriberUID: string,
-    onResetCacheNeededCallback: () => void
-  ): Promise<void> {
-
-    console.log("subscribeBars called");
-
-    if (!checkInterval(resolution) || !this.chain) {
-      console.log("Invalid interval or chain");
-    }
-
-    if (this.chartDataCache.length > 0) {
-      const lastResolution = this.chartDataCache[this.chartDataCache.length - 1].resolution;
-      if (lastResolution !== resolution) {
-        this.chartDataCache = [];
-        onResetCacheNeededCallback();
-      }
-    }
-
-    if (this.isSubscribed) {
-      this.unsubscribeBars();
-    }
-    this.isSubscribed = true;
-
-    const fetchDataAndUpdateChart = async () => {
+    resolveSymbol: async (
+      symbolName: string,
+      onSymbolResolvedCallback: ResolveCallback,
+      onResolveErrorCallback: Function,
+    ) => {
       try {
-        const latestData = await liveData(
-          resolution,
-          this.tokenId,
-          this.chartDataCache[this.chartDataCache.length - 1].time,
-          this.chartDataCache[this.chartDataCache.length - 1].close
-        );
+        const symbolInfo: LibrarySymbolInfo = {
+          ticker: token_name,
+          name: token_name,
+          description: token_name.toUpperCase(),
+          timezone: "Etc/UTC",
+          exchange: "",
+          minmov: 1,
+          listed_exchange: "Uniswap",
+          format: "price",
+          pricescale: 100000000000,
+          supported_resolutions: [
+            "1",
+            "5",
+            "15",
+            "30",
+            "60",
+            "120",
+            "240",
+            "1D",
+          ] as ResolutionString[],
+          type: "crypto",
+          session: "24x7",
+          has_intraday: true,
+          volume_precision: 11,
+          data_status: "streaming",
+        }
 
-        const latestDataParsed = JSON.parse(latestData.response_data)[0];
+        onSymbolResolvedCallback(symbolInfo)
+      } catch (error) {
+        onResolveErrorCallback("[resolveSymbol]: symbol not found", error)
+      }
+    },
 
-        if (latestDataParsed) {
-          const low = Number(latestDataParsed.low);
-          const high = Number(latestDataParsed.high);
-          const open = Number(latestDataParsed.open);
-          const close = Number(latestDataParsed.close);
-          const volume = Math.floor(latestDataParsed.vol);
+    getBars: async (
+      symbolInfo: LibrarySymbolInfo,
+      resolution: ResolutionString,
+      periodParams: PeriodParams,
+      onHistoryCallback: HistoryCallback,
+      onErrorCallback: Function,
+    ) => {
+      // console.log("[getBars] Method call");
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+      if (!checkInterval(resolution) || !chain) {
+        return onErrorCallback("[getBars] Invalid interval")
+      }
 
-          const lastCandle = this.chartDataCache[this.chartDataCache.length - 1];
-         
-          if (this.chartType === "marketcap") {
-            lastCandle.low = low * this.totalSupply;
-            lastCandle.high = high * this.totalSupply;
-            lastCandle.open = open * this.totalSupply;
-            lastCandle.close = close * this.totalSupply;
-            lastCandle.vol = volume;
-          } else {
-            lastCandle.time = latestDataParsed.time * 1000;
-            lastCandle.close = close;
-            lastCandle.high = high;
-            lastCandle.low = low;
-            lastCandle.open = open;
-            lastCandle.vol = volume;
+      const { to, firstDataRequest } = periodParams
+      const period = intervals[resolution]
+
+      if (periodParams.firstDataRequest) lastCandleTime = 0
+      const toTime = lastCandleTime == 0 ? to : lastCandleTime
+      const fromTime = to - timestring(period) * 600
+
+      try {
+        if (chartType === "marketcap") {
+          const getSupply = `query {token(input: { address: "${token_id_org}", networkId: ${chainId} })
+            {
+              id
+              address
+              cmcId
+              decimals
+              name
+              symbol
+              totalSupply
+              info {
+                circulatingSupply
+                imageThumbUrl
+              }
+              explorerData {
+                blueCheckmark
+                description
+                tokenType
+              }
+            }
+          }`
+
+          const supply = await makeApiRequest(
+            getSupply,
+            `${process.env.NEXT_PUBLIC_CODEX_API}`,
+          )
+          totalSupply = parseFloat(supply.data.token.totalSupply)
+        }
+
+        const getTokenInfo = `query {
+          getBars(
+            symbol: "${tokenSymbol}"
+            quoteToken: ${quoteToken || "null"}
+            from: ${fromTime}
+            to: ${toTime}
+            statsType: FILTERED
+            removeLeadingNullValues: true
+            resolution: "${resolution}"
+            currencyCode:"USD"
+          ) {
+            c
+            h
+            l
+            o
+            t
+            v
+            s
+          }
+        }`
+
+        const data = await makeApiRequest(
+          getTokenInfo,
+          `${process.env.NEXT_PUBLIC_CODEX_API}`,
+        )
+
+        const formattedData = await formatBars(data)
+
+        if (
+          (data.Response && data.Response === "Error") ||
+          formattedData.length === 0
+        ) {
+          onHistoryCallback([], {
+            noData: true,
+          })
+
+          return
+        }
+        const bars = formattedData
+          .filter((bar: any) => bar.time >= fromTime && bar.time < to)
+          .map((bar: any) => ({
+            time: bar.time * 1000,
+            low: chartType == 'price' ? bar.low : bar.low * totalSupply,
+            high: chartType == 'price' ? bar.high : bar.high * totalSupply,
+            open: chartType == 'price' ? bar.open : bar.open * totalSupply,
+            close: chartType == 'price' ? bar.close : bar.close * totalSupply,
+            volume: bar.volume,
+          }))
+
+        chartDataCache = bars
+        let chartDataFromCache1: any = chartDataCache[chartDataCache.length - 1]
+
+       // console.log(
+         // "lastCandleTime===================>",
+          //toTime,
+          //"=====bars===>",
+          //bars,
+        //)
+        //console.log(
+         // "chartDataFromCache1===================>",
+         // chartDataFromCache1,
+        //)
+
+        onHistoryCallback(bars, {
+          noData: false,
+        })
+      } catch (error) {
+        console.log("[getBars]: Get error", error)
+        onErrorCallback(error)
+      }
+    },
+    subscribeBars(
+      symbolInfo: LibrarySymbolInfo,
+      resolution: ResolutionString,
+      onRealtimeCallback: SubscribeBarsCallback,
+      subscriberUID: string,
+      onResetCacheNeededCallback: () => void,
+    ) {
+      let chartDataFromCache: any = chartDataCache[chartDataCache.length - 1]
+      let lastDefinedApiTime = chartDataFromCache["time"]
+      let lastDefinedApiClose = chartDataFromCache["close"]
+      let isNewCandle = true
+      let resolution_time: any = { "1": 60, "5": 300, 15: 900 }
+      let previousClose = chartDataFromCache["close"] // Track the close price of the previous candle
+
+      console.log(
+        "previousClose=chartDataFromCache========>===>",
+        lastDefinedApiClose,
+      )
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+
+      const calculateNextCandleTime = (
+        currentTime: number,
+        resolution: string,
+      ) => {
+        const date = new Date(currentTime)
+        let nextCandleTime
+
+        switch (resolution) {
+          case "1S":
+            nextCandleTime = date.setSeconds(date.getSeconds() + 1)
+            break
+          case "1":
+            nextCandleTime = date.setMinutes(date.getMinutes() + 1, 0, 0)
+            break
+          case "5":
+            nextCandleTime = date.setMinutes(
+              Math.ceil((date.getMinutes() + 1) / 5) * 5,
+              0,
+              0,
+            )
+            break
+          case "15":
+            nextCandleTime = date.setMinutes(
+              Math.ceil((date.getMinutes() + 1) / 15) * 15,
+              0,
+              0,
+            )
+            break
+          case "30":
+            nextCandleTime = date.setMinutes(
+              Math.ceil((date.getMinutes() + 1) / 30) * 30,
+              0,
+              0,
+            )
+            break
+          case "60":
+            nextCandleTime = date.setHours(date.getHours() + 1, 0, 0, 0)
+            break
+          case "240":
+            nextCandleTime = date.setHours(
+              Math.ceil((date.getHours() + 1) / 4) * 4,
+              0,
+              0,
+              0,
+            )
+            break
+          case "1D":
+            nextCandleTime = date.setHours(24, 0, 0, 0)
+            break
+          default:
+            nextCandleTime = currentTime
+        }
+
+        return nextCandleTime
+      }
+
+      async function getLatestData() {
+        try {
+          const resolutionsToSkip = ["1D"]
+
+          if (!resolutionsToSkip.includes(resolution)) {
+            // Pass lastDefinedApiClose only if isNewCandle is true
+            let lastDefinedApiClose_first = isNewCandle
+              ? lastDefinedApiClose
+              : ""
+
+            const data = await liveData(
+              resolution,
+              token_id_org,
+              lastDefinedApiTime,
+              lastDefinedApiClose_first,
+            )
+
+            let latestData
+
+            try {
+              const chart_data = JSON.parse(data.response_data)
+
+              latestData = chart_data[chart_data.length - 1]
+            } catch (e) {
+              const chart_data = data.response_data
+
+              latestData = chart_data[chart_data.length - 1]
+            }
+
+            if (latestData) {
+              const low = Number(Number(latestData["low"]).toFixed(11))
+              const high = Number(Number(latestData["high"]).toFixed(11))
+              const open = Number(Number(latestData["open"]).toFixed(11))
+              const close = Number(Number(latestData["close"]).toFixed(11))
+              const vol = Math.floor(Number(latestData["vol"]))
+
+              const lastPrice = {
+                time: Number(latestData["time"]),
+                low: chartType == "price" ? low : low * totalSupply,
+                high: chartType == "price" ? high : high * totalSupply,
+                open: chartType == "price" ? open : open * totalSupply,
+                close: chartType == "price" ? close : close * totalSupply,
+                volume: vol,
+              }
+
+              // console.log("===========totalSupply===>", totalSupply)
+              // Send the updated candle to the chart
+              await onRealtimeCallback(lastPrice)
+
+              if (Number(latestData["time"]) !== lastDefinedApiTime) {
+                // Update lastDefinedApiTime and lastDefinedApiClose for a new candle
+                lastDefinedApiTime = Number(latestData["time"])
+                lastDefinedApiClose = close
+                isNewCandle = true
+                //console.log(
+                  //"New Candle Detected lastDefinedApiClose liveData api call ===lastDefinedApiTime==>",
+                  //lastDefinedApiTime,
+                  //"===latestData time===>",
+                  //latestData["time"],
+                  //"====last_close_price===>",
+                  //lastDefinedApiClose,
+                //)
+                // console.log("New Candle Detected. Updated lastDefinedApiTime and lastDefinedApiClose.");
+              } else if (close !== lastDefinedApiClose) {
+                //console.log(
+                  //"Updated lastDefinedApiClose liveData api call ===lastDefinedApiTime==>",
+                  //lastDefinedApiTime,
+                  //"===latestData time===>",
+                  //latestData["time"],
+                  //"====last_close_price===>",
+                  //lastDefinedApiClose,
+                //)
+                // console.log("liveData api call ===latestData time==>",latestData["time"])
+                // console.log("liveData api call ===last_close_price==>",lastDefinedApiClose)
+                // Update only the close price if the time remains the same
+                // lastDefinedApiClose = close;
+                // console.log("Updated lastDefinedApiClose for the same candle.");
+              }
+            } else {
+              console.warn("No latestData received from API.")
+            }
+          }
+        } catch (error) {
+          console.error("Error fetching latest data:", error)
+        }
+      }
+
+      async function fetchDataAndUpdateChart() {
+        const resolutionsToSkip = ["1D"]
+
+        if (!resolutionsToSkip.includes(resolution)) {
+          timeoutId = setTimeout(async () => {
+            await getLatestData()
+            isNewCandle = false // Reset isNewCandle after fetching data
+            await fetchDataAndUpdateChart() // Recursive call to continue fetching data
+          }, 1000) // Update every second
+        }
+      }
+
+      fetchDataAndUpdateChart()
+
+      fetchDataAndUpdateChart()
+
+      function updateLatestPrice(): void {
+        const value: string | null = localStorage.getItem(
+          "price_" + token_id_org,
+        )
+
+        if (value && Number(value) > 0) {
+          const lastPrice = {
+            time: chartDataFromCache["time"],
+            low: chartDataFromCache["low"],
+            high: chartDataFromCache["high"],
+            open: chartDataFromCache["open"],
+            close: parseFloat(value),
+            volume: chartDataFromCache["volume"],
           }
 
-          onRealtimeCallback(lastCandle);
+          onRealtimeCallback(lastPrice)
         }
-      } catch (error) {
-        console.error("Error fetching latest data:", error);
+      }
+      // setInterval(updateLatestPrice, 1000);
+    },
+    unsubscribeBars: async (subscriberUID: string) => {},
+    getMarks: async (
+      symbolInfo: LibrarySymbolInfo,
+      startDate: number,
+      endDate: number,
+      onDataCallback: (marks: any[]) => void,
+      resolution: ResolutionString,
+    ) => {
+      let lengthOfPrevData: number = 0
+      const fetchMarks = async () => {
+        try {
+          //console.log("getMarks called")
+          const data = await getMarksFunc(walletId || "", token_id_org || "")
+          const buyPoints: Point[] = data.buy_dict_list
+          const sellPoints: Point[] = data.sell_dict_list
+
+          if (!buyPoints && !sellPoints) {
+            console.warn("Both buyPoints and sellPoints are empty")
+
+            return
+          }
+
+          let alignedBuyPoints: Point[] = []
+          let alignedSellPoints: Point[] = []
+
+          if (buyPoints) {
+            alignedBuyPoints = roundOffPoints(buyPoints, resolution)
+          }
+
+          if (sellPoints) {
+            alignedSellPoints = roundOffPoints(sellPoints, resolution)
+          }
+
+          const marksSell: Mark[] = alignedSellPoints.map((data, index) => ({
+            id: index + 1,
+            time: data.time,
+            color: "red",
+            text: [`Sold: $${data.price} at ${data.tn_time}`],
+            label: "S",
+            labelFontColor: "white",
+            minSize: 25,
+          }))
+
+          const marksBuy: Mark[] = alignedBuyPoints.map((data, index) => ({
+            id: index + 1 + alignedSellPoints.length,
+            time: data.time,
+            color: "green",
+            text: [`Bought: $${data.price} at ${data.tn_time}`],
+            label: "B",
+            labelFontColor: "white",
+            minSize: 25,
+          }))
+
+          const combinedMarks: Mark[] = [...marksBuy, ...marksSell]
+
+          if (lengthOfPrevData != combinedMarks.length) {
+            onDataCallback(combinedMarks)
+            lengthOfPrevData = combinedMarks.length
+          }
+        } catch (error) {
+          console.error("Error in getMarks:", error)
+        }
       }
 
-      console.log("Before setting timeout:", DataFeed.timeoutId);
-      DataFeed.timeoutId = setTimeout(fetchDataAndUpdateChart, 1000);
-      console.log("After setting timeout:", DataFeed.timeoutId);
-    };
-
-    fetchDataAndUpdateChart();
-  }
-
-  unsubscribeBars(): void {
-    console.log("unsubscribeBars called");
-    if (DataFeed.timeoutId) {
-      console.log("Clearing timeout:", DataFeed.timeoutId);
-      clearTimeout(DataFeed.timeoutId);
-      DataFeed.timeoutId = null;
-    }
-    this.isSubscribed = false;
-  }
-
-  static async formatBars(response: any) {
-    const data = response.data
-    let df: any;
-
-    if (data && data.getBars) {
-      df = data.getBars
-
-      DataFeed.lastCandleTime = df.t[0] as number;
-
-      let dfArray = df.c.map((cValue: number, index: number) => ({
-        c: cValue,
-        v: df.v[index],
-        h: df.h[index],
-        l: df.l[index],
-        o: df.o[index],
-        t: df.t[index],
-        s: df.s[index],
-      }));
-  
-      dfArray = dfArray.filter((row: any, index: number) => {
-        if (
-          row.v == null ||
-          row.c == null ||
-          (row.v == 0 && row.o == row.h && row.o == row.l && row.o == row.c)
-        ) {
-          return;
+      const intervalId = setInterval(async () => {
+        if (!document.hidden) {
+          await fetchMarks()
         }
-        return row;
-      });
+      }, 10000)
 
-      df = {
-        c: dfArray.map((row: any) => row.c),
-        v: dfArray.map((row: any) => row.v),
-        h: dfArray.map((row: any) => row.h),
-        l: dfArray.map((row: any) => row.l),
-        o: dfArray.map((row: any) => row.o),
-        t: dfArray.map((row: any) => row.t),
-        s: dfArray.map((row: any) => row.s),
-      };
-  
-      df = df.t.map((t: number, index: number) => ({
-        close: df.c[index],
-        high: df.h[index],
-        low: df.l[index],
-        open: df.o[index],
-        time: t,
-        volume: df.v[index],
-        status: "ok",
-      }));
-    } else {
-      df = [];
+      await fetchMarks()
+
+      return () => clearInterval(intervalId)
+    },
+  }
+}
+
+function roundOffPoints(points: Point[], resolution: string): Point[] {
+  return points.map((point: Point) => {
+    let roundedTimeUnix: number
+
+    // Determine the rounded time based on resolution
+    switch (resolution) {
+      case "1S":
+        roundedTimeUnix = Math.round(point.time / 1) * 1
+        break
+      case "1":
+        roundedTimeUnix = Math.round(point.time / 60) * 60
+        break
+      case "5":
+        roundedTimeUnix = Math.round(point.time / (5 * 60)) * 5 * 60
+        break
+      case "15":
+        roundedTimeUnix = Math.round(point.time / (15 * 60)) * 15 * 60
+        break
+      case "30":
+        roundedTimeUnix = Math.round(point.time / (30 * 60)) * 30 * 60
+        break
+      case "60":
+        roundedTimeUnix = Math.round(point.time / (60 * 60)) * 60 * 60
+        break
+      case "120":
+        roundedTimeUnix = Math.round(point.time / (120 * 60)) * 120 * 60
+        break
+      case "240":
+        roundedTimeUnix = Math.round(point.time / (240 * 60)) * 240 * 60
+        break
+      case "1D":
+        roundedTimeUnix = Math.round(point.time / (24 * 60 * 60)) * 24 * 60 * 60
+        break
+      default:
+        throw new Error("Invalid resolution")
     }
-  
-    return df;
-  };
-};
+
+    point.time = roundedTimeUnix
+
+    return point
+  })
+}
+
+async function removeOutliers<T extends Record<string, any>>(
+  arr: T[],
+  key: keyof T,
+) {
+  // Step 1: Extract the values associated with the given key
+  const values = arr.map((item) => item[key])
+
+  // Step 2: Calculate the mean
+  const mean = values.reduce((acc, val) => acc + val, 0) / values.length
+
+  // Step 3: Calculate the standard deviation
+  const variance =
+    values.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) /
+    values.length
+  const stdDeviation = Math.sqrt(variance)
+
+  // Step 4: Filter the array based on z-score
+  const filteredArray = arr.filter((item) => {
+    const zScore = (item[key] - mean) / stdDeviation
+
+    return Math.abs(zScore) < 3
+  })
+
+  return filteredArray
+}
+
+export async function formatBars(response: any) {
+  const data = response.data
+
+  if (data && data.getBars) {
+    var df = data.getBars
+
+    // Remove rows with null/undefined values in 'v' and 'c'
+    lastCandleTime = df.t[0] as number
+    let dfArray = df.c.map((cValue: number, index: number) => ({
+      c: cValue,
+      v: df.v[index],
+      h: df.h[index],
+      l: df.l[index],
+      o: df.o[index],
+      t: df.t[index],
+      s: df.s[index],
+    }))
+
+    // Filter the array to remove rows where either c or v is null
+    dfArray = dfArray.filter((row: any, index: number) => {
+      const prevRow = index == 0 ? dfArray[0] : dfArray[index - 1]
+
+      if (
+        row.v == null ||
+        row.c == null ||
+        (row.v == 0 && row.o == row.h && row.o == row.l && row.o == row.c)
+      )
+        return
+
+      return row
+    })
+
+    // If needed, convert the filtered array back to the original structure
+    df = {
+      c: dfArray.map((row: any) => row.c),
+      v: dfArray.map((row: any) => row.v),
+      h: dfArray.map((row: any) => row.h),
+      l: dfArray.map((row: any) => row.l),
+      o: dfArray.map((row: any) => row.o),
+      t: dfArray.map((row: any) => row.t),
+      s: dfArray.map((row: any) => row.s),
+    }
+
+    df = df.t.map((t: number, index: number) => ({
+      close: df.c[index],
+      high: df.h[index],
+      low: df.l[index],
+      open: df.o[index],
+      time: t, // Assuming time in seconds; no need to divide by 1000
+      volume: df.v[index],
+      status: "ok", // Assuming you may want to keep 's' field.
+    }))
+    // df = await removeOutliers(df, "close");
+    // df = await removeOutliers(df, "open");
+    // df = await removeOutliers(df, "low");
+    // df = await removeOutliers(df, "high");
+  } else {
+    df = []
+  }
+
+  return df
+}
