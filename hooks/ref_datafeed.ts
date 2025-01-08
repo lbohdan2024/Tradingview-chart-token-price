@@ -251,12 +251,15 @@ export function createDataFeed(
       let lastDefinedApiClose = chartDataFromCache["close"]
       let isNewCandle = true
       let resolution_time: any = { "1": 60, "5": 300, 15: 900 }
-      let previousClose = chartDataFromCache["close"] // Track the close price of the previous candle
+      let previousData = {
+        time: 0,
+        low: 0,
+        high: 0,
+        open: 0,
+        close: 0,
+        volume: 0,
+      }; // Track the close price of the previous candle
 
-      console.log(
-        "previousClose=chartDataFromCache========>===>",
-        lastDefinedApiClose,
-      )
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
@@ -338,7 +341,6 @@ export function createDataFeed(
 
             try {
               const chart_data = JSON.parse(data.response_data)
-
               latestData = chart_data[chart_data.length - 1]
             } catch (e) {
               const chart_data = data.response_data
@@ -353,7 +355,7 @@ export function createDataFeed(
               const close = Number(Number(latestData["close"]).toFixed(11))
               const vol = Math.floor(Number(latestData["vol"]))
 
-              const lastPrice = {
+              let lastPrice = {
                 time: Number(latestData["time"]),
                 low: chartType == "price" ? low : low * totalSupply,
                 high: chartType == "price" ? high : high * totalSupply,
@@ -362,24 +364,12 @@ export function createDataFeed(
                 volume: vol,
               }
 
-              // console.log("===========totalSupply===>", totalSupply)
-              // Send the updated candle to the chart
-              await onRealtimeCallback(lastPrice)
-
-              if (Number(latestData["time"]) !== lastDefinedApiTime) {
-                // Update lastDefinedApiTime and lastDefinedApiClose for a new candle
+              if (Number(latestData["time"]) == previousData['time']) {
+                lastPrice.open = previousData['open']
+              } else if (Number(latestData["time"]) !== lastDefinedApiTime) {
                 lastDefinedApiTime = Number(latestData["time"])
                 lastDefinedApiClose = close
                 isNewCandle = true
-                //console.log(
-                  //"New Candle Detected lastDefinedApiClose liveData api call ===lastDefinedApiTime==>",
-                  //lastDefinedApiTime,
-                  //"===latestData time===>",
-                  //latestData["time"],
-                  //"====last_close_price===>",
-                  //lastDefinedApiClose,
-                //)
-                // console.log("New Candle Detected. Updated lastDefinedApiTime and lastDefinedApiClose.");
               } else if (close !== lastDefinedApiClose) {
                 //console.log(
                   //"Updated lastDefinedApiClose liveData api call ===lastDefinedApiTime==>",
@@ -395,6 +385,9 @@ export function createDataFeed(
                 // lastDefinedApiClose = close;
                 // console.log("Updated lastDefinedApiClose for the same candle.");
               }
+
+              await onRealtimeCallback(lastPrice)
+              previousData = lastPrice
             } else {
               console.warn("No latestData received from API.")
             }
@@ -415,8 +408,6 @@ export function createDataFeed(
           }, 1000) // Update every second
         }
       }
-
-      fetchDataAndUpdateChart()
 
       fetchDataAndUpdateChart()
 
