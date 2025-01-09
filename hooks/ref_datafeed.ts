@@ -251,14 +251,7 @@ export function createDataFeed(
       let lastDefinedApiClose = chartDataFromCache["close"]
       let isNewCandle = true
       let resolution_time: any = { "1": 60, "5": 300, 15: 900 }
-      let previousData = {
-        time: 0,
-        low: 0,
-        high: 0,
-        open: 0,
-        close: 0,
-        volume: 0,
-      }; // Track the close price of the previous candle
+      let previousData = chartDataFromCache // Track the close price of the previous candle
 
       if (timeoutId) {
         clearTimeout(timeoutId)
@@ -327,13 +320,13 @@ export function createDataFeed(
           if (!resolutionsToSkip.includes(resolution)) {
             // Pass lastDefinedApiClose only if isNewCandle is true
             let lastDefinedApiClose_first = isNewCandle
-              ? lastDefinedApiClose
+              ? previousData.close
               : ""
 
             const data = await liveData(
               resolution,
               token_id_org,
-              lastDefinedApiTime,
+              previousData.time,
               lastDefinedApiClose_first,
             )
 
@@ -367,8 +360,8 @@ export function createDataFeed(
               if (Number(latestData["time"]) == previousData['time']) {
                 lastPrice.open = previousData['open']
               } else if (Number(latestData["time"]) !== lastDefinedApiTime) {
-                lastDefinedApiTime = Number(latestData["time"])
-                lastDefinedApiClose = close
+                // lastDefinedApiTime = Number(latestData["time"])
+                // lastDefinedApiClose = lastPrice.close
                 isNewCandle = true
               } else if (close !== lastDefinedApiClose) {
                 //console.log(
@@ -386,8 +379,8 @@ export function createDataFeed(
                 // console.log("Updated lastDefinedApiClose for the same candle.");
               }
 
-              await onRealtimeCallback(lastPrice)
               previousData = lastPrice
+              await onRealtimeCallback(lastPrice)
             } else {
               console.warn("No latestData received from API.")
             }
