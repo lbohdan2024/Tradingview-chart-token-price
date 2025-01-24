@@ -1,8 +1,6 @@
-# Next.js & NextUI Template
+# Tradingview Chart for analysis using Next.js Template
 
-This is a template for creating applications using Next.js 14 (app directory) and NextUI (v2).
-
-[Try it on CodeSandbox](https://githubbox.com/nextui-org/next-app-template)
+This is Tradingview chart to show token price in real-time with Next.js and TypeScript.
 
 ## Technologies Used
 
