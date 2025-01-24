@@ -123,7 +123,7 @@ export function createDataFeed(
       onHistoryCallback: HistoryCallback,
       onErrorCallback: Function,
     ) => {
-      // console.log("[getBars] Method call");
+      console.log("[getBars] Method call", resolution);
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
@@ -246,6 +246,7 @@ export function createDataFeed(
       subscriberUID: string,
       onResetCacheNeededCallback: () => void,
     ) {
+      console.log("subscriebars called", resolution)
       let chartDataFromCache: any = chartDataCache[chartDataCache.length - 1]
       let lastDefinedApiTime = chartDataFromCache["time"]
       let lastDefinedApiClose = chartDataFromCache["close"]
@@ -256,6 +257,8 @@ export function createDataFeed(
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
+
+      fetchDataAndUpdateChart()
 
       const calculateNextCandleTime = (
         currentTime: number,
@@ -317,7 +320,7 @@ export function createDataFeed(
         try {
           const resolutionsToSkip = ["1D"]
 
-          if (!resolutionsToSkip.includes(resolution)) {
+          // if (!resolutionsToSkip.includes(resolution)) {
             // Pass lastDefinedApiClose only if isNewCandle is true
             let lastDefinedApiClose_first = isNewCandle
               ? previousData.close
@@ -380,11 +383,13 @@ export function createDataFeed(
               }
 
               previousData = lastPrice
-              await onRealtimeCallback(lastPrice)
+              console.log("================000", resolution, latestData, lastPrice);
+              
+              onRealtimeCallback(lastPrice)
             } else {
               console.warn("No latestData received from API.")
             }
-          }
+          // }
         } catch (error) {
           console.error("Error fetching latest data:", error)
         }
@@ -393,35 +398,33 @@ export function createDataFeed(
       async function fetchDataAndUpdateChart() {
         const resolutionsToSkip = ["1D"]
 
-        if (!resolutionsToSkip.includes(resolution)) {
+        // if (!resolutionsToSkip.includes(resolution)) {
           timeoutId = setTimeout(async () => {
             await getLatestData()
             isNewCandle = false // Reset isNewCandle after fetching data
             await fetchDataAndUpdateChart() // Recursive call to continue fetching data
           }, 1000) // Update every second
-        }
+        // }
       }
 
-      fetchDataAndUpdateChart()
+      // function updateLatestPrice(): void {
+      //   const value: string | null = localStorage.getItem(
+      //     "price_" + token_id_org,
+      //   )
 
-      function updateLatestPrice(): void {
-        const value: string | null = localStorage.getItem(
-          "price_" + token_id_org,
-        )
+      //   if (value && Number(value) > 0) {
+      //     const lastPrice = {
+      //       time: chartDataFromCache["time"],
+      //       low: chartDataFromCache["low"],
+      //       high: chartDataFromCache["high"],
+      //       open: chartDataFromCache["open"],
+      //       close: parseFloat(value),
+      //       volume: chartDataFromCache["volume"],
+      //     }
 
-        if (value && Number(value) > 0) {
-          const lastPrice = {
-            time: chartDataFromCache["time"],
-            low: chartDataFromCache["low"],
-            high: chartDataFromCache["high"],
-            open: chartDataFromCache["open"],
-            close: parseFloat(value),
-            volume: chartDataFromCache["volume"],
-          }
-
-          onRealtimeCallback(lastPrice)
-        }
-      }
+      //     onRealtimeCallback(lastPrice)
+      //   }
+      // }
       // setInterval(updateLatestPrice, 1000);
     },
     unsubscribeBars: async (subscriberUID: string) => {},
