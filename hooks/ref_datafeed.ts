@@ -123,7 +123,7 @@ export function createDataFeed(
       onHistoryCallback: HistoryCallback,
       onErrorCallback: Function,
     ) => {
-      // console.log("[getBars] Method call");
+      console.log("[getBars] Method call", resolution);
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
@@ -246,20 +246,19 @@ export function createDataFeed(
       subscriberUID: string,
       onResetCacheNeededCallback: () => void,
     ) {
+      console.log("subscriebars called", resolution)
       let chartDataFromCache: any = chartDataCache[chartDataCache.length - 1]
       let lastDefinedApiTime = chartDataFromCache["time"]
       let lastDefinedApiClose = chartDataFromCache["close"]
       let isNewCandle = true
       let resolution_time: any = { "1": 60, "5": 300, 15: 900 }
-      let previousClose = chartDataFromCache["close"] // Track the close price of the previous candle
+      let previousData = chartDataFromCache // Track the close price of the previous candle
 
-      console.log(
-        "previousClose=chartDataFromCache========>===>",
-        lastDefinedApiClose,
-      )
       if (timeoutId) {
         clearTimeout(timeoutId)
       }
+
+      fetchDataAndUpdateChart()
 
       const calculateNextCandleTime = (
         currentTime: number,
@@ -321,16 +320,16 @@ export function createDataFeed(
         try {
           const resolutionsToSkip = ["1D"]
 
-          if (!resolutionsToSkip.includes(resolution)) {
+          // if (!resolutionsToSkip.includes(resolution)) {
             // Pass lastDefinedApiClose only if isNewCandle is true
             let lastDefinedApiClose_first = isNewCandle
-              ? lastDefinedApiClose
+              ? previousData.close
               : ""
 
             const data = await liveData(
               resolution,
               token_id_org,
-              lastDefinedApiTime,
+              previousData.time,
               lastDefinedApiClose_first,
             )
 
@@ -338,7 +337,6 @@ export function createDataFeed(
 
             try {
               const chart_data = JSON.parse(data.response_data)
-
               latestData = chart_data[chart_data.length - 1]
             } catch (e) {
               const chart_data = data.response_data
@@ -353,7 +351,7 @@ export function createDataFeed(
               const close = Number(Number(latestData["close"]).toFixed(11))
               const vol = Math.floor(Number(latestData["vol"]))
 
-              const lastPrice = {
+              let lastPrice = {
                 time: Number(latestData["time"]),
                 low: chartType == "price" ? low : low * totalSupply,
                 high: chartType == "price" ? high : high * totalSupply,
@@ -362,24 +360,12 @@ export function createDataFeed(
                 volume: vol,
               }
 
-              // console.log("===========totalSupply===>", totalSupply)
-              // Send the updated candle to the chart
-              await onRealtimeCallback(lastPrice)
-
-              if (Number(latestData["time"]) !== lastDefinedApiTime) {
-                // Update lastDefinedApiTime and lastDefinedApiClose for a new candle
-                lastDefinedApiTime = Number(latestData["time"])
-                lastDefinedApiClose = close
+              if (Number(latestData["time"]) == previousData['time']) {
+                lastPrice.open = previousData['open']
+              } else if (Number(latestData["time"]) !== lastDefinedApiTime) {
+                // lastDefinedApiTime = Number(latestData["time"])
+                // lastDefinedApiClose = lastPrice.close
                 isNewCandle = true
-                //console.log(
-                  //"New Candle Detected lastDefinedApiClose liveData api call ===lastDefinedApiTime==>",
-                  //lastDefinedApiTime,
-                  //"===latestData time===>",
-                  //latestData["time"],
-                  //"====last_close_price===>",
-                  //lastDefinedApiClose,
-                //)
-                // console.log("New Candle Detected. Updated lastDefinedApiTime and lastDefinedApiClose.");
               } else if (close !== lastDefinedApiClose) {
                 //console.log(
                   //"Updated lastDefinedApiClose liveData api call ===lastDefinedApiTime==>",
@@ -395,10 +381,15 @@ export function createDataFeed(
                 // lastDefinedApiClose = close;
                 // console.log("Updated lastDefinedApiClose for the same candle.");
               }
+
+              previousData = lastPrice
+              console.log("================000", resolution, latestData, lastPrice);
+              
+              onRealtimeCallback(lastPrice)
             } else {
               console.warn("No latestData received from API.")
             }
-          }
+          // }
         } catch (error) {
           console.error("Error fetching latest data:", error)
         }
@@ -407,37 +398,33 @@ export function createDataFeed(
       async function fetchDataAndUpdateChart() {
         const resolutionsToSkip = ["1D"]
 
-        if (!resolutionsToSkip.includes(resolution)) {
+        // if (!resolutionsToSkip.includes(resolution)) {
           timeoutId = setTimeout(async () => {
             await getLatestData()
             isNewCandle = false // Reset isNewCandle after fetching data
             await fetchDataAndUpdateChart() // Recursive call to continue fetching data
           }, 1000) // Update every second
-        }
+        // }
       }
 
-      fetchDataAndUpdateChart()
+      // function updateLatestPrice(): void {
+      //   const value: string | null = localStorage.getItem(
+      //     "price_" + token_id_org,
+      //   )
 
-      fetchDataAndUpdateChart()
+      //   if (value && Number(value) > 0) {
+      //     const lastPrice = {
+      //       time: chartDataFromCache["time"],
+      //       low: chartDataFromCache["low"],
+      //       high: chartDataFromCache["high"],
+      //       open: chartDataFromCache["open"],
+      //       close: parseFloat(value),
+      //       volume: chartDataFromCache["volume"],
+      //     }
 
-      function updateLatestPrice(): void {
-        const value: string | null = localStorage.getItem(
-          "price_" + token_id_org,
-        )
-
-        if (value && Number(value) > 0) {
-          const lastPrice = {
-            time: chartDataFromCache["time"],
-            low: chartDataFromCache["low"],
-            high: chartDataFromCache["high"],
-            open: chartDataFromCache["open"],
-            close: parseFloat(value),
-            volume: chartDataFromCache["volume"],
-          }
-
-          onRealtimeCallback(lastPrice)
-        }
-      }
+      //     onRealtimeCallback(lastPrice)
+      //   }
+      // }
       // setInterval(updateLatestPrice, 1000);
     },
     unsubscribeBars: async (subscriberUID: string) => {},
